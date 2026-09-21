@@ -1,0 +1,59 @@
+Create a frontend-only Smart Attendance dashboard that matches the current app’s design as closely as possible.
+
+This project is ONLY for the UI. Do not create backend code, database logic, Node/Express server code, authentication flow, API calls, face recognition, Python scripts, or real attendance computation. Use only static mock data and visual frontend components.
+
+Design objective:
+- Match the existing Smart Attendance UI very closely
+- Preserve the same overall structure, spacing, and visual hierarchy as the current app
+- Match the exact placement of buttons, cards, panels, forms, side navigation, and dashboard sections
+- Keep the same premium academic dashboard aesthetic, not a new generic dashboard design
+- Use the current app as the visual source of truth for composition and layout
+
+Reference style and layout requirements:
+- Left sidebar navigation with grouped menu buttons
+- High-contrast dashboard cards for stats and summaries
+- Clean table layouts with rows, actions, and status badges
+- Consistent button styling and alignment across all screens
+- Rounded cards, subtle shadows, and modern educational management look
+- Professional color palette with institutional academic tones
+- Similar spacing rhythm between headings, cards, and sections
+- Responsive desktop-first layout with tablet/mobile adaptation
+- Keep layout density and page rhythm close to the current UI
+
+Important matching rule:
+- Do not redesign the app with a totally different structure
+- Do not invent a new layout style
+- Match the button positions, card arrangement, sidebars, panels, and page composition where they currently exist
+- The design should feel like the same app, recreated as a polished frontend prototype
+
+Include these screens:
+1. Landing page
+2. Login page
+3. Signup page
+4. Admin dashboard
+5. Faculty dashboard
+6. Student dashboard
+7. Attendance management page
+8. Class management page
+9. Student records page
+10. Analytics and reports page
+11. Profile / settings page
+
+UI implementation details:
+- Use realistic mock data for students, faculty, classes, attendance, analytics, and reports
+- Keep forms neat, structured, and easy to read
+- Maintain consistent typography, weights, and visual hierarchy
+- Use academic/admin panel composition with balanced spacing
+- Add subtle hover states and polished interactions, but no real logic behind them
+- Ensure the app looks premium, clean, and professional
+
+Do not include:
+- backend/server code
+- database models or real persistence
+- auth logic or session validation
+- ML or Python integration
+- actual QR validation or facial recognition
+- API requests or live data fetching
+
+Final outcome:
+Build a modern frontend prototype that visually matches the current Smart Attendance app structure and styling as closely as possible, while remaining a fully static mock-data interface.

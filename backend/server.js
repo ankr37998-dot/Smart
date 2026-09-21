@@ -41,6 +41,16 @@ const configuredOrigins = [
   ...parseOrigins(process.env.ALLOWED_ORIGINS),
   "http://localhost:5500",
   "http://127.0.0.1:5500",
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+  "http://localhost:3001",
+  "http://127.0.0.1:3001",
+  "http://0.0.0.0:3001",
+  "http://localhost:3002",
+  "http://127.0.0.1:3002",
+  "http://0.0.0.0:3002",
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
   "http://attendsmart.in",
   "https://attendsmart.in"
 ].filter(Boolean);
@@ -59,12 +69,32 @@ app.use(
 app.use(express.json());
 app.use(morgan("dev"));
 
-// Serve static files from frontend
-const frontendDir = path.join(__dirname, "../frontend");
+// Serve the original legacy Smart frontend so the app matches the working UI
+const frontendDir = path.join(__dirname, "../frontend_backup_original_2026_09_21");
 app.use(express.static(frontendDir));
 
 app.get("/", (req, res) => {
   res.sendFile(path.join(frontendDir, "index.html"));
+});
+
+app.get("/login", (req, res) => {
+  res.sendFile(path.join(frontendDir, "index.html"));
+});
+
+app.get("/admin", (req, res) => {
+  res.sendFile(path.join(frontendDir, "admin.html"));
+});
+
+app.get("/faculty", (req, res) => {
+  res.sendFile(path.join(frontendDir, "faculty.html"));
+});
+
+app.get("/student", (req, res) => {
+  res.sendFile(path.join(frontendDir, "student.html"));
+});
+
+app.get("/session", (req, res) => {
+  res.sendFile(path.join(frontendDir, "session.html"));
 });
 
 // Health check

@@ -93,7 +93,7 @@ export const updateUser = async (req, res, next) => {
     if (semester) user.semester = semester;
     if (section) user.section = section;
     if (admissionYear) user.admissionYear = admissionYear;
-    
+
     if (password) {
       user.passwordHash = await bcrypt.hash(password, 10);
     }
@@ -160,8 +160,8 @@ export const createStudentBasic = async (req, res, next) => {
 
     // Validate required fields - only identity info
     if (!name || !email || !password) {
-      return res.status(400).json({ 
-        message: "name, email, and password are required for basic student creation" 
+      return res.status(400).json({
+        message: "name, email, and password are required for basic student creation"
       });
     }
 
@@ -229,8 +229,8 @@ export const assignAcademicDetails = async (req, res, next) => {
       return res.status(400).json({ message: "studentId is required" });
     }
     if (!department || !semester || !section) {
-      return res.status(400).json({ 
-        message: "department, semester, and section are required for academic assignment" 
+      return res.status(400).json({
+        message: "department, semester, and section are required for academic assignment"
       });
     }
 
@@ -252,7 +252,7 @@ export const assignAcademicDetails = async (req, res, next) => {
     student.department = department;
     student.semester = semester;
     student.section = section;
-    
+
     if (academicYear) {
       student.admissionYear = academicYear;
     }
@@ -276,8 +276,8 @@ export const assignAcademicDetails = async (req, res, next) => {
       section: student.section,
       admissionYear: student.admissionYear,
       academicAssigned: true,
-      message: isFirstAssignment 
-        ? "Academic details assigned successfully" 
+      message: isFirstAssignment
+        ? "Academic details assigned successfully"
         : "Academic details updated successfully"
     });
   } catch (err) {
@@ -434,7 +434,7 @@ export const getPromotionPreview = async (req, res, next) => {
     if (section) filter.section = section;
 
     const students = await User.find(filter).select("name email department semester section");
-    
+
     res.json({
       count: students.length,
       students,
@@ -482,13 +482,13 @@ export const graduateStudents = async (req, res, next) => {
 export const getTimetable = async (req, res, next) => {
   try {
     const { department, semester, section } = req.query;
-    
+
     if (!department || !semester || !section) {
       return res.status(400).json({ message: "department, semester, and section are required" });
     }
-    
+
     let timetable = await TimeTable.findOne({ department, semester, section });
-    
+
     // If no timetable exists, create an empty one
     if (!timetable) {
       timetable = await TimeTable.create({
@@ -506,7 +506,7 @@ export const getTimetable = async (req, res, next) => {
         }
       });
     }
-    
+
     res.json(timetable);
   } catch (err) {
     next(err);
@@ -517,13 +517,13 @@ export const getTimetable = async (req, res, next) => {
 export const addTimetableSlot = async (req, res, next) => {
   try {
     const { department, semester, section, day, startTime, endTime, classId, courseCode, courseName, room } = req.body;
-    
+
     if (!department || !semester || !section || !day || !startTime || !endTime || !classId) {
       return res.status(400).json({ message: "All fields are required" });
     }
-    
+
     let timetable = await TimeTable.findOne({ department, semester, section });
-    
+
     if (!timetable) {
       timetable = await TimeTable.create({
         department,
@@ -540,22 +540,22 @@ export const addTimetableSlot = async (req, res, next) => {
         }
       });
     }
-    
+
     // Check for time conflict
-    const existingSlot = timetable.schedule[day]?.find(slot => 
-      slot.startTime === startTime || 
+    const existingSlot = timetable.schedule[day]?.find(slot =>
+      slot.startTime === startTime ||
       (slot.startTime < endTime && slot.endTime > startTime)
     );
-    
+
     if (existingSlot) {
       return res.status(409).json({ message: "Time slot conflicts with existing schedule" });
     }
-    
+
     // Add new slot
     if (!timetable.schedule[day]) {
       timetable.schedule[day] = [];
     }
-    
+
     timetable.schedule[day].push({
       startTime,
       endTime,
@@ -564,13 +564,13 @@ export const addTimetableSlot = async (req, res, next) => {
       courseName,
       room: room || ''
     });
-    
+
     // Sort by start time
     timetable.schedule[day].sort((a, b) => a.startTime.localeCompare(b.startTime));
-    
+
     timetable.markModified('schedule');
     await timetable.save();
-    
+
     res.json({ message: "Time slot added successfully", timetable });
   } catch (err) {
     next(err);
@@ -581,22 +581,22 @@ export const addTimetableSlot = async (req, res, next) => {
 export const deleteTimetableSlot = async (req, res, next) => {
   try {
     const { department, semester, section, day, startTime } = req.body;
-    
+
     const timetable = await TimeTable.findOne({ department, semester, section });
-    
+
     if (!timetable) {
       return res.status(404).json({ message: "Timetable not found" });
     }
-    
+
     if (!timetable.schedule[day]) {
       return res.status(404).json({ message: "No slots on this day" });
     }
-    
+
     timetable.schedule[day] = timetable.schedule[day].filter(slot => slot.startTime !== startTime);
-    
+
     timetable.markModified('schedule');
     await timetable.save();
-    
+
     res.json({ message: "Time slot deleted successfully" });
   } catch (err) {
     next(err);
@@ -609,13 +609,13 @@ export const deleteTimetableSlot = async (req, res, next) => {
 export const getFacultySchedule = async (req, res, next) => {
   try {
     const { facultyId } = req.query;
-    
+
     if (!facultyId) {
       return res.status(400).json({ message: "facultyId is required" });
     }
-    
+
     let schedule = await FacultySchedule.findOne({ facultyId });
-    
+
     // If no schedule exists, create an empty one
     if (!schedule) {
       schedule = await FacultySchedule.create({
@@ -630,7 +630,7 @@ export const getFacultySchedule = async (req, res, next) => {
         }
       });
     }
-    
+
     res.json(schedule);
   } catch (err) {
     next(err);
@@ -641,12 +641,30 @@ export const getFacultySchedule = async (req, res, next) => {
 export const addFacultyScheduleSlot = async (req, res, next) => {
   try {
     const { facultyId, day, startTime, endTime, classId, courseId, courseCode, courseName, department, semester, section, room } = req.body;
-    
+
     // Accept either classId or courseId
     const slotId = classId || courseId;
     if (!facultyId || !day || !startTime || !endTime || !slotId) {
       return res.status(400).json({ message: "facultyId, day, startTime, endTime, and course are required" });
     }
+
+    const toMinutes = (time) => {
+      const [hours, minutes] = String(time).split(":").map(Number);
+      return hours * 60 + minutes;
+    };
+    const startMinutes = toMinutes(startTime);
+    const endMinutes = toMinutes(endTime);
+    const lunchStart = 13 * 60 + 30;
+    const lunchEnd = 14 * 60 + 10;
+
+    if (endMinutes <= startMinutes) {
+      return res.status(400).json({ message: "End time must be after start time" });
+    }
+
+    if (startMinutes < lunchEnd && endMinutes > lunchStart) {
+      return res.status(400).json({ message: "No class can be scheduled from 1:30 PM to 2:10 PM" });
+    }
+
     let schedule = await FacultySchedule.findOne({ facultyId });
     if (!schedule) {
       schedule = await FacultySchedule.create({
@@ -666,9 +684,9 @@ export const addFacultyScheduleSlot = async (req, res, next) => {
       schedule.schedule[day] = [];
     }
     // Check for exact duplicate (same course, same time, same section on same day)
-    const exactDuplicate = schedule.schedule[day]?.find(slot => 
-      slot.courseCode === courseCode && 
-      slot.startTime === startTime && 
+    const exactDuplicate = schedule.schedule[day]?.find(slot =>
+      slot.courseCode === courseCode &&
+      slot.startTime === startTime &&
       slot.endTime === endTime &&
       slot.section === section
     );
@@ -702,7 +720,7 @@ export const addFacultyScheduleSlot = async (req, res, next) => {
     const classObj = await Class.findById(slotId);
     if (classObj) {
       // Generate a unique QR token (simple random string)
-      const qrToken = `QR-${slotId}-${Date.now()}-${Math.floor(Math.random()*10000)}`;
+      const qrToken = `QR-${slotId}-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
       // Set session expiration (e.g., 2 hours after startTime)
       const today = new Date();
       // Parse startTime and endTime as today's date
@@ -729,7 +747,7 @@ export const addFacultyScheduleSlot = async (req, res, next) => {
 async function updateClassTimetable(department, semester, section, day, slotData) {
   try {
     let timetable = await TimeTable.findOne({ department, semester, section });
-    
+
     if (!timetable) {
       timetable = await TimeTable.create({
         department,
@@ -746,7 +764,7 @@ async function updateClassTimetable(department, semester, section, day, slotData
         }
       });
     }
-    
+
     // Check if slot already exists
     const exists = timetable.schedule[day]?.find(s => s.startTime === slotData.startTime);
     if (!exists) {
@@ -765,30 +783,30 @@ async function updateClassTimetable(department, semester, section, day, slotData
 export const deleteFacultyScheduleSlot = async (req, res, next) => {
   try {
     const { facultyId, day, startTime } = req.body;
-    
+
     const schedule = await FacultySchedule.findOne({ facultyId });
-    
+
     if (!schedule) {
       return res.status(404).json({ message: "Schedule not found" });
     }
-    
+
     if (!schedule.schedule[day]) {
       return res.status(404).json({ message: "No slots on this day" });
     }
-    
+
     // Get slot info before deleting (for class timetable cleanup)
     const slot = schedule.schedule[day].find(s => s.startTime === startTime);
-    
+
     schedule.schedule[day] = schedule.schedule[day].filter(s => s.startTime !== startTime);
-    
+
     schedule.markModified('schedule');
     await schedule.save();
-    
+
     // Also remove from class timetable
     if (slot) {
       await removeFromClassTimetable(slot.department, slot.semester, slot.section, day, startTime);
     }
-    
+
     res.json({ message: "Time slot deleted successfully" });
   } catch (err) {
     next(err);
@@ -813,13 +831,13 @@ async function removeFromClassTimetable(department, semester, section, day, star
 export const saveFacultySchedule = async (req, res, next) => {
   try {
     const { facultyId, schedule } = req.body;
-    
+
     if (!facultyId) {
       return res.status(400).json({ message: "Faculty ID is required" });
     }
-    
+
     let facultySchedule = await FacultySchedule.findOne({ facultyId });
-    
+
     if (facultySchedule) {
       facultySchedule.schedule = schedule;
       facultySchedule.markModified('schedule');
@@ -830,7 +848,7 @@ export const saveFacultySchedule = async (req, res, next) => {
         schedule
       });
     }
-    
+
     res.json({ message: "Schedule saved successfully", schedule: facultySchedule });
   } catch (err) {
     next(err);
@@ -845,7 +863,7 @@ export const listSections = async (req, res, next) => {
     const { department } = req.query;
     const filter = { isActive: true };
     if (department) filter.department = department;
-    
+
     const sections = await Section.find(filter).sort({ department: 1, name: 1 });
     res.json(sections);
   } catch (err) {
@@ -857,26 +875,26 @@ export const listSections = async (req, res, next) => {
 export const createSection = async (req, res, next) => {
   try {
     const { name, department, description } = req.body;
-    
+
     if (!name || !department) {
       return res.status(400).json({ message: "Section name and department are required" });
     }
-    
+
     // Check if section already exists in this department
-    const existing = await Section.findOne({ 
-      name: name.toUpperCase(), 
-      department 
+    const existing = await Section.findOne({
+      name: name.toUpperCase(),
+      department
     });
     if (existing) {
       return res.status(409).json({ message: "Section already exists in this department" });
     }
-    
+
     const section = await Section.create({
       name: name.toUpperCase(),
       department,
       description
     });
-    
+
     res.status(201).json(section);
   } catch (err) {
     next(err);
@@ -888,16 +906,16 @@ export const updateSection = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { name, description, isActive } = req.body;
-    
+
     const section = await Section.findById(id);
     if (!section) {
       return res.status(404).json({ message: "Section not found" });
     }
-    
+
     if (name) section.name = name.toUpperCase();
     if (description !== undefined) section.description = description;
     if (isActive !== undefined) section.isActive = isActive;
-    
+
     await section.save();
     res.json(section);
   } catch (err) {
@@ -909,12 +927,12 @@ export const updateSection = async (req, res, next) => {
 export const deleteSection = async (req, res, next) => {
   try {
     const { id } = req.params;
-    
+
     const section = await Section.findByIdAndDelete(id);
     if (!section) {
       return res.status(404).json({ message: "Section not found" });
     }
-    
+
     res.json({ message: "Section deleted successfully" });
   } catch (err) {
     next(err);
@@ -937,25 +955,25 @@ export const listDepartments = async (req, res, next) => {
 export const createDepartment = async (req, res, next) => {
   try {
     const { name, code, description } = req.body;
-    
+
     if (!name || !code) {
       return res.status(400).json({ message: "Department name and code are required" });
     }
-    
+
     // Check if department already exists
-    const existing = await Department.findOne({ 
+    const existing = await Department.findOne({
       $or: [{ name }, { code: code.toUpperCase() }]
     });
     if (existing) {
       return res.status(409).json({ message: "Department with this name or code already exists" });
     }
-    
+
     const department = await Department.create({
       name,
       code: code.toUpperCase(),
       description
     });
-    
+
     res.status(201).json(department);
   } catch (err) {
     next(err);
@@ -967,17 +985,17 @@ export const updateDepartment = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { name, code, description, isActive } = req.body;
-    
+
     const department = await Department.findById(id);
     if (!department) {
       return res.status(404).json({ message: "Department not found" });
     }
-    
+
     if (name) department.name = name;
     if (code) department.code = code.toUpperCase();
     if (description !== undefined) department.description = description;
     if (isActive !== undefined) department.isActive = isActive;
-    
+
     await department.save();
     res.json(department);
   } catch (err) {
@@ -989,12 +1007,12 @@ export const updateDepartment = async (req, res, next) => {
 export const deleteDepartment = async (req, res, next) => {
   try {
     const { id } = req.params;
-    
+
     const department = await Department.findByIdAndDelete(id);
     if (!department) {
       return res.status(404).json({ message: "Department not found" });
     }
-    
+
     res.json({ message: "Department deleted successfully" });
   } catch (err) {
     next(err);
@@ -1008,15 +1026,15 @@ export const listCourses = async (req, res, next) => {
   try {
     const { department, semester, isActive } = req.query;
     const filter = {};
-    
+
     if (department) filter.department = department;
     if (semester) filter.semester = parseInt(semester);
     if (isActive !== undefined) filter.isActive = isActive === 'true';
-    
+
     const courses = await Course.find(filter)
       .populate('department', 'name code')
       .sort({ department: 1, semester: 1, courseCode: 1 });
-    
+
     res.json(courses);
   } catch (err) {
     next(err);
@@ -1027,20 +1045,20 @@ export const listCourses = async (req, res, next) => {
 export const createCourse = async (req, res, next) => {
   try {
     const { courseCode, courseName, department, semester, credits, description } = req.body;
-    
+
     if (!courseCode || !courseName || !department || !semester) {
       return res.status(400).json({ message: "Course code, name, department, and semester are required" });
     }
-    
+
     // Check if course code already exists in this department
-    const existing = await Course.findOne({ 
-      courseCode: courseCode.toUpperCase(), 
-      department 
+    const existing = await Course.findOne({
+      courseCode: courseCode.toUpperCase(),
+      department
     });
     if (existing) {
       return res.status(409).json({ message: "Course code already exists in this department" });
     }
-    
+
     const course = await Course.create({
       courseCode: courseCode.toUpperCase(),
       courseName,
@@ -1049,7 +1067,7 @@ export const createCourse = async (req, res, next) => {
       credits: credits || 3,
       description: description || ''
     });
-    
+
     const populated = await Course.findById(course._id).populate('department', 'name code');
     res.status(201).json(populated);
   } catch (err) {
@@ -1062,16 +1080,16 @@ export const updateCourse = async (req, res, next) => {
   try {
     const { id } = req.params;
     const { courseCode, courseName, department, semester, credits, description, isActive } = req.body;
-    
+
     const course = await Course.findById(id);
     if (!course) {
       return res.status(404).json({ message: "Course not found" });
     }
-    
+
     // Check for duplicate course code if changing
     if (courseCode && (courseCode.toUpperCase() !== course.courseCode || department !== course.department.toString())) {
-      const existing = await Course.findOne({ 
-        courseCode: courseCode.toUpperCase(), 
+      const existing = await Course.findOne({
+        courseCode: courseCode.toUpperCase(),
         department: department || course.department,
         _id: { $ne: id }
       });
@@ -1079,7 +1097,7 @@ export const updateCourse = async (req, res, next) => {
         return res.status(409).json({ message: "Course code already exists in this department" });
       }
     }
-    
+
     if (courseCode) course.courseCode = courseCode.toUpperCase();
     if (courseName) course.courseName = courseName;
     if (department) course.department = department;
@@ -1087,9 +1105,9 @@ export const updateCourse = async (req, res, next) => {
     if (credits !== undefined) course.credits = credits;
     if (description !== undefined) course.description = description;
     if (isActive !== undefined) course.isActive = isActive;
-    
+
     await course.save();
-    
+
     const populated = await Course.findById(course._id).populate('department', 'name code');
     res.json(populated);
   } catch (err) {
@@ -1101,12 +1119,12 @@ export const updateCourse = async (req, res, next) => {
 export const deleteCourse = async (req, res, next) => {
   try {
     const { id } = req.params;
-    
+
     const course = await Course.findByIdAndDelete(id);
     if (!course) {
       return res.status(404).json({ message: "Course not found" });
     }
-    
+
     res.json({ message: "Course deleted successfully" });
   } catch (err) {
     next(err);

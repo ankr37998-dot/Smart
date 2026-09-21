@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="app-api-base" content="" />
+    <title>Smart Attendance — Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              brand: {
+                50: "#edf6ff",
+                100: "#dfeeff",
+                500: "#0a84ff",
+                600: "#0071e3",
+                700: "#0057b8",
+              },
+            },
+            boxShadow: {
+              soft: "0 18px 42px rgba(15, 23, 42, 0.06)",
+            },
+          },
+        },
+      };
+    </script>
+    <link
+      rel="stylesheet"
+      href="assets/css/styles.css?v=20260920-apple-ui-v7"
+    />
+  </head>
+  <body class="auth-page antialiased">
+    <div class="auth-card">
+      <div class="auth-header">
+        <div class="auth-logo">🎓</div>
+        <div>
+          <h1 class="auth-title">Smart Attendance</h1>
+          <p class="auth-subtitle">
+            Secure biometric &amp; QR attendance for campus.
+          </p>
+        </div>
+      </div>
+
+      <form id="loginForm" class="auth-form">
+        <div class="form-group">
+          <label for="role">Role</label>
+          <select id="role" required>
+            <option value="" disabled selected>Select your role</option>
+            <option value="admin">👑 Admin</option>
+            <option value="faculty">👨‍🏫 Faculty</option>
+            <option value="student">🎓 Student</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="email">Email Address</label>
+          <input
+            type="email"
+            id="email"
+            placeholder="name@college.edu"
+            required
+            autocomplete="email"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="password">Password</label>
+          <div class="password-input-wrapper">
+            <input
+              type="password"
+              id="password"
+              placeholder="••••••••"
+              required
+              autocomplete="current-password"
+            />
+            <button
+              type="button"
+              id="togglePasswordBtn"
+              class="password-toggle-btn"
+              title="Show/Hide Password"
+              aria-label="Toggle password visibility"
+            >
+              👁️
+            </button>
+          </div>
+        </div>
+
+        <div class="auth-actions">
+          <button type="submit" class="btn btn-primary full-width">
+            Sign In →
+          </button>
+        </div>
+
+        <p id="loginError" class="form-error"></p>
+
+        <!-- Quick Demo Login Helpers -->
+        <div class="demo-logins-bar">
+          <div class="demo-logins-title">Quick Demo Login</div>
+          <div class="demo-pills-list">
+            <button
+              type="button"
+              class="demo-pill-btn"
+              data-role="admin"
+              data-email="admin@example.com"
+              data-pass="admin123"
+            >
+              👑 Admin
+            </button>
+            <button
+              type="button"
+              class="demo-pill-btn"
+              data-role="faculty"
+              data-email="faculty@example.com"
+              data-pass="faculty123"
+            >
+              👨‍🏫 Faculty
+            </button>
+            <button
+              type="button"
+              class="demo-pill-btn"
+              data-role="student"
+              data-email="student@example.com"
+              data-pass="student123"
+            >
+              🎓 Student
+            </button>
+          </div>
+        </div>
+      </form>
+    </div>
+
+    <script src="config.js?v=20260526"></script>
+    <script type="module" src="assets/js/auth.js?v=20260920"></script>
+    <script>
+      // Show/Hide Password Toggle
+      const toggleBtn = document.getElementById("togglePasswordBtn");
+      const passInput = document.getElementById("password");
+      toggleBtn?.addEventListener("click", () => {
+        const isPass = passInput.type === "password";
+        passInput.type = isPass ? "text" : "password";
+        toggleBtn.textContent = isPass ? "🙈" : "👁️";
+      });
+
+      // Quick Demo Fill
+      document.querySelectorAll(".demo-pill-btn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const role = btn.getAttribute("data-role");
+          const email = btn.getAttribute("data-email");
+          const pass = btn.getAttribute("data-pass");
+
+          const roleSelect = document.getElementById("role");
+          const emailInput = document.getElementById("email");
+          const passInput = document.getElementById("password");
+          const errEl = document.getElementById("loginError");
+
+          if (roleSelect) roleSelect.value = role;
+          if (emailInput) emailInput.value = email;
+          if (passInput) passInput.value = pass;
+          if (errEl) errEl.textContent = "";
+
+          // Focus the submit button
+          document.querySelector('button[type="submit"]')?.focus();
+        });
+      });
+    </script>
+  </body>
+</html>

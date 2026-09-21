@@ -3,3 +3,5 @@ face-recognition
 numpy
 Pillow
 flask
+pymongo
+python-dotenv

@@ -48,7 +48,7 @@ export const studentDashboard = async (req, res, next) => {
 
     const perClass = new Map();
     for (const rec of records) {
-      const cls = rec.sessionId.classId;
+      const cls = rec.sessionId?.classId;
       if (!cls) continue;
       const key = cls._id.toString();
       if (!perClass.has(key)) {
@@ -370,7 +370,9 @@ export const getActiveSessions = async (req, res, next) => {
     });
     const markedSessionIds = new Set(markedRecords.map(r => r.sessionId.toString()));
 
-    const result = sessions.map(session => ({
+    const result = sessions
+      .filter((session) => session.classId)
+      .map((session) => ({
       sessionId: session._id,
       classId: session.classId._id,
       courseCode: session.classId.courseCode,
@@ -415,6 +417,7 @@ export const getAttendance = async (req, res, next) => {
 
     const results = [];
     for (const session of sessions) {
+      if (!session.classId) continue;
       const record = await AttendanceRecord.findOne({
         sessionId: session._id,
         studentId: req.user._id
@@ -458,6 +461,7 @@ export const getTodayAttendance = async (req, res, next) => {
     const results = [];
     
     for (const session of sessions) {
+      if (!session.classId) continue;
       const record = await AttendanceRecord.findOne({
         sessionId: session._id,
         studentId: req.user._id

@@ -13,7 +13,11 @@ WORKDIR /app
 COPY backend/package*.json ./backend/
 RUN cd backend && npm ci --omit=dev
 
-# Install Python ML deps required by the face/ML pipeline.
+# Face recognition worker (backend/ml/face_worker.py)
+COPY backend/requirements.txt ./backend/requirements.txt
+RUN python3 -m pip install --no-cache-dir -r backend/requirements.txt
+
+# Shortage-risk predictor (ml/) — optional in the same container
 COPY ml/requirements.txt ./ml/requirements.txt
 RUN python3 -m pip install --no-cache-dir -r ml/requirements.txt
 
