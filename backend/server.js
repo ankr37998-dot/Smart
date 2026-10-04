@@ -40,19 +40,8 @@ const configuredOrigins = [
   process.env.RENDER_URL,
   ...parseOrigins(process.env.ALLOWED_ORIGINS),
   "http://localhost:5500",
-  "http://127.0.0.1:5500",
   "http://localhost:3000",
-  "http://127.0.0.1:3000",
-  "http://localhost:3001",
-  "http://127.0.0.1:3001",
-  "http://0.0.0.0:3001",
-  "http://localhost:3002",
-  "http://127.0.0.1:3002",
-  "http://0.0.0.0:3002",
-  "http://localhost:5173",
-  "http://127.0.0.1:5173",
-  "http://attendsmart.in",
-  "https://attendsmart.in"
+  "http://localhost:5173"
 ].filter(Boolean);
 
 const allowedOrigins = [...new Set(configuredOrigins.map((origin) => origin.replace(/\/$/, "")))];
@@ -69,8 +58,8 @@ app.use(
 app.use(express.json());
 app.use(morgan("dev"));
 
-// Serve the original legacy Smart frontend so the app matches the working UI
-const frontendDir = path.join(__dirname, "../frontend_backup_original_2026_09_21");
+// Serve the current frontend with split HTML structure
+const frontendDir = path.join(__dirname, "../frontend");
 app.use(express.static(frontendDir));
 
 app.get("/", (req, res) => {
@@ -82,7 +71,48 @@ app.get("/login", (req, res) => {
 });
 
 app.get("/admin", (req, res) => {
-  res.sendFile(path.join(frontendDir, "admin.html"));
+  res.sendFile(path.join(frontendDir, "admin-dashboard.html"));
+});
+
+// Admin split pages
+app.get("/admin-dashboard.html", (req, res) => {
+  res.sendFile(path.join(frontendDir, "admin-dashboard.html"));
+});
+
+app.get("/admin-users.html", (req, res) => {
+  res.sendFile(path.join(frontendDir, "admin-users.html"));
+});
+
+app.get("/admin-departments.html", (req, res) => {
+  res.sendFile(path.join(frontendDir, "admin-departments.html"));
+});
+
+app.get("/admin-sections.html", (req, res) => {
+  res.sendFile(path.join(frontendDir, "admin-sections.html"));
+});
+
+app.get("/admin-courses.html", (req, res) => {
+  res.sendFile(path.join(frontendDir, "admin-courses.html"));
+});
+
+app.get("/admin-timetable.html", (req, res) => {
+  res.sendFile(path.join(frontendDir, "admin-timetable.html"));
+});
+
+app.get("/admin-promote.html", (req, res) => {
+  res.sendFile(path.join(frontendDir, "admin-promote.html"));
+});
+
+app.get("/admin-analytics.html", (req, res) => {
+  res.sendFile(path.join(frontendDir, "admin-analytics.html"));
+});
+
+app.get("/admin-face-id.html", (req, res) => {
+  res.sendFile(path.join(frontendDir, "admin-face-id.html"));
+});
+
+app.get("/admin-profile.html", (req, res) => {
+  res.sendFile(path.join(frontendDir, "admin-profile.html"));
 });
 
 app.get("/faculty", (req, res) => {

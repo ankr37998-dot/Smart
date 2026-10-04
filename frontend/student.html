@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="app-api-base" content="" />
+  <title>Student Dashboard - Smart Attendance</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#edf6ff',
+              100: '#dfeeff',
+              500: '#0a84ff',
+              600: '#0071e3',
+              700: '#0057b8'
+            }
+          },
+          boxShadow: {
+            soft: '0 18px 42px rgba(15, 23, 42, 0.06)'
+          }
+        }
+      }
+    };
+  </script>
+  <link rel="stylesheet" href="assets/css/styles.css?v=20260922-layout-fix-v1" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js" type="text/javascript"></script>
+</head>
+<body class="app-shell bg-[#f5f5f7] text-slate-900 antialiased">
+  <div class="mobile-topbar mobile-navbar">
+    <button id="mobileMenuBtn" class="mobile-menu-btn" aria-label="Open menu">☰</button>
+    <div class="mobile-brand">Smart Attendance</div>
+    <button id="mobileProfileBtn" class="mobile-profile-btn" aria-label="Profile">👤</button>
+  </div>
+  <div class="app-shell__layout">
+    <aside class="desktop-sidebar sidebar">
+      <h2>🎓 Smart Attendance</h2>
+      <div class="sidebar-content">
+        <button class="sidebar-btn active" id="dashboardBtn">📊 Dashboard</button>
+        <button class="sidebar-btn" id="markAttendanceBtn">📷 Mark Attendance</button>
+        <button class="sidebar-btn" id="viewAttendanceBtn">📋 View Attendance</button>
+        <button class="sidebar-btn" id="analyticsBtn">📈 Analytics</button>
+        <button class="sidebar-btn" id="timeTableBtn">📅 Time Table</button>
+      </div>
+      <button class="sidebar-btn" id="profileBtn">👤 Profile</button>
+      <button class="sidebar-btn" id="logoutBtn">🚪 Logout</button>
+    </aside>
+
+    <main class="app-shell__main">
+      <section class="desktop-dashboard">
+        <div class="main-content">
+          <div class="container">
+      <div id="dashboardView">
+        <h3 class="section-gap">📊 Student Dashboard</h3>
+        
+        <!-- Active Sessions Alert Banner -->
+        <div id="activeSessionBanner" class="banner-card banner-warning section-gap hidden" onclick="switchView('mark')" role="button">
+          <div class="flex-between gap-xl">
+            <span class="text-large">🔔</span>
+            <div class="flex-1">
+              <strong class="text-large">Active Attendance Session!</strong>
+              <p id="activeSessionBannerText" class="text-muted text-small">Click to mark your attendance now</p>
+            </div>
+            <span class="text-large">→</span>
+          </div>
+        </div>
+        
+        <!-- Welcome Banner -->
+        <div class="card banner-card banner-success section-gap">
+          <div class="flex-between">
+            <div>
+              <h2>Welcome, <span id="studentNameDisplay">Student</span>!</h2>
+              <p class="section-gap-sm text-muted" id="studentInfoDisplay"></p>
+            </div>
+            <div class="text-right text-muted">
+              <p class="no-margin text-small" id="currentDateStudent"></p>
+              <p class="no-margin text-small" id="currentDayStudent"></p>
+            </div>
+          </div>
+        </div>
+        
+        <div class="cards section-gap" id="dashboardSummaryCards">
+          <!-- Overall summary cards will be generated here -->
+        </div>
+        
+        <!-- Today's Attendance Verification Section -->
+        <div id="todayAttendanceSection" class="section-gap">
+          <div class="flex-between section-small">
+            <h4>✅ Today's Attendance Verification</h4>
+            <button onclick="loadTodayAttendance()" class="btn btn-secondary">🔄 Refresh</button>
+          </div>
+            <div id="todayAttendanceList" class="card card-no-pad">
+              <p class="text-muted text-center panel-message">Loading...</p>
+          </div>
+        </div>
+        
+        <!-- Next Class & Today's Schedule -->
+        <div  class="grid-2 gap-xl section-gap">
+          <div id="upcomingClassView">
+            <h4 class="section-gap-sm">🎯 Current / Next Class</h4>
+            <div id="upcomingClassDetails" class="card"></div>
+          </div>
+          <div id="todayScheduleView">
+            <h4 class="section-gap-sm">📅 Today's Schedule</h4>
+            <div id="todaySchedule" class="card panel-scroll"></div>
+          </div>
+        </div>
+        
+        <h4 class="section-gap-sm">📚 Subject-wise Attendance</h4>
+        <div class="cards" id="subjectCards">
+          <!-- Subject attendance cards will be generated here -->
+        </div>
+      </div>
+
+      <div id="markAttendanceView" class="hidden">
+        <h3 class="section-gap-sm">Mark Attendance</h3>
+        <p class="section-gap text-muted text-small">
+          Secure dual verification: <strong>Face</strong> first, then <strong>Faculty QR</strong>. Both are required.
+        </p>
+
+        <div class="card section-gap">
+          <div class="flex-wrap gap-xl">
+            <div id="stepFaceStatus" class="flex-1">
+              <span class="text-muted">Step 1 — Face</span>
+              <p id="stepFaceLabel" class="text-warning text-small">⏳ Pending</p>
+            </div>
+            <div id="stepQrStatus" class="flex-1 dimmed">
+              <span class="text-muted">Step 2 — QR</span>
+              <p id="stepQrLabel" class="text-muted text-small">🔒 Locked</p>
+            </div>
+          </div>
+          <p id="dualVerifyStatus" class="text-muted text-small"></p>
+        </div>
+
+        <!-- Active Sessions Section -->
+        <div id="activeSessionsSection" class="card section-gap">
+          <h4 class="section-gap-sm">🟢 Active Attendance Sessions</h4>
+          <div id="activeSessionsList">
+            <p class="text-muted">Loading active sessions...</p>
+          </div>
+        </div>
+        
+        <div class="card section-gap">
+          <h4 class="section-gap-sm">Step 1 — Verify Your Face</h4>
+          <p class="section-gap text-muted text-small">
+            Register your face in Profile first if you have not already.
+          </p>
+          <button id="facialAttendanceBtn" type="button" class="btn btn-info">
+            📷 Verify Face
+          </button>
+          <video id="facialReader" class="section-gap-sm hidden responsive-box"></video>
+          <p id="facialMsg" class="error-msg section-gap-sm"></p>
+        </div>
+
+        <div id="qrStepCard" class="card disabled-card">
+          <h4 class="section-gap-sm">Step 2 — Scan Faculty QR Code</h4>
+          <div class="grid grid-2 gap-xl" >
+            <div>
+              <label>Enter QR Token</label>
+              <input id="qrTokenInput" placeholder="Available after face verification..." disabled />
+              <button id="markBtn" type="button" class="btn btn-primary full-width" disabled>Submit QR &amp; Mark Attendance</button>
+              <p id="markMsg" class="error-msg"></p>
+            </div>
+            <div>
+              <label>Or Scan QR Code</label>
+              <div id="qrReader" class="section-gap-sm responsive-box"></div>
+              <p class="section-gap-sm text-muted text-small">
+                Scan the live QR shown by your faculty. Expired QRs are rejected automatically.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="viewAttendanceView" class="hidden">
+        <h3 class="section-gap">View Your Attendance</h3>
+        <form id="viewAttendanceForm" class="grid grid align-end" >
+            <div class="form-group">
+                <label for="studentDate">Date</label>
+                <input type="date" id="studentDate" required>
+            </div>
+            <div class="form-group">
+                <button type="submit" class="btn btn-primary">Check Status</button>
+            </div>
+        </form>
+        <table id="attendanceStatusTable" class="card section-gap table-fill hidden text-center">
+            <!-- Status will be shown here -->
+        </table>
+      </div>
+
+      <div id="timeTableView" class="hidden">
+        <h3 class="section-gap">Your Time Table</h3>
+        <table id="timeTable"></table>
+      </div>
+
+      <div id="analyticsView" class="hidden">
+        <h3 class="section-gap">Your Attendance Analytics</h3>
+        <div class="card section-gap">
+          <h4>📊 Your Attendance Summary</h4>
+          <div id="studentAnalyticsSummary"  class="grid gap-sm section-gap-sm">
+              <div class="card-stat">
+                <div class="stat-number" id="overallAttendance">0%</div>
+                <div class="stat-label">Overall Attendance</div>
+              </div>
+              <div class="card-stat">
+                <div class="stat-number" id="totalPresent">0</div>
+                <div class="stat-label">Days Present</div>
+              </div>
+              <div class="card-stat">
+                <div class="stat-number" id="totalAbsent">0</div>
+                <div class="stat-label">Days Absent</div>
+              </div>
+              <div class="card-stat">
+                <div class="stat-number" id="totalSessions">0</div>
+                <div class="stat-label">Total Sessions</div>
+              </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h4>📈 Monthly Attendance Trend</h4>
+          <canvas id="studentChart" class="section-gap-sm max-w-full"></canvas>
+        </div>
+
+        <div class="card section-gap-sm">
+          <h4>📋 Detailed Attendance Report</h4>
+          <form id="analyticsForm"  class="grid gap-sm align-end section-gap-sm">
+            <div class="form-group">
+              <label>From Date</label>
+              <input type="date" id="anFromDate">
+            </div>
+            <div class="form-group">
+              <label>To Date</label>
+              <input type="date" id="anToDate">
+            </div>
+            <div class="form-group align-self-end">
+              <button type="submit" class="btn btn-primary">Load Report</button>
+            </div>
+          </form>
+          <table id="analyticsTable"  class="section-gap-sm"></table>
+        </div>
+      </div>
+
+      <div id="profileView" class="hidden">
+        <h3 class="section-gap">Your Profile</h3>
+        <div class="card" id="profileDetails">
+            <!-- Profile details will be generated here -->
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="config.js?v=20260526"></script>
+  <script type="module" src="assets/js/student.js?v=20260526"></script>
+  <script type="module" src="assets/js/mobile-nav.js?v=20260526"></script>
+  <nav class="mobile-bottom-nav" aria-label="Mobile navigation">
+    <button type="button" class="mobile-nav-item" data-target="dashboardBtn"><span>🏠</span><span>Dashboard</span></button>
+    <button type="button" class="mobile-nav-item" data-target="timeTableBtn"><span>📚</span><span>Classes</span></button>
+    <button type="button" class="mobile-nav-item" data-target="analyticsBtn"><span>📈</span><span>Analytics</span></button>
+    <button type="button" class="mobile-nav-item" data-target="profileBtn"><span>👤</span><span>Profile</span></button>
+  </nav>
+</body>
+</html>
+
+

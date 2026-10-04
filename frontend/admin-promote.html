@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="app-api-base" content="" />
+    <title>Promote - Smart Attendance</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: {
+              brand: {
+                50: "#edf6ff",
+                100: "#dfeeff",
+                500: "#0a84ff",
+                600: "#0071e3",
+                700: "#0057b8",
+              },
+            },
+            boxShadow: {
+              soft: "0 18px 42px rgba(15, 23, 42, 0.06)",
+            },
+          },
+        },
+      };
+    </script>
+    <link
+      rel="stylesheet"
+      href="assets/css/styles.css?v=20260922-layout-fix-v1"
+    />
+  </head>
+  <body class="app-shell bg-[#f5f5f7] text-slate-900 antialiased">
+    <div class="app-shell__layout flex min-h-screen">
+      <aside
+        class="desktop-sidebar sidebar w-[260px] border-r border-slate-200 bg-white/80 shadow-soft"
+      >
+        <h2>🎓 Smart Attendance</h2>
+        <div class="sidebar-content">
+          <a href="admin-dashboard.html" class="sidebar-btn" id="dashboardBtn" data-page="dashboard">
+            📊 Dashboard
+          </a>
+          <a href="admin-users.html" class="sidebar-btn" id="createUserBtn" data-page="users">
+            👥 Manage Users
+          </a>
+          <a href="admin-departments.html" class="sidebar-btn" id="departmentsBtn" data-page="departments">
+            🏛️ Departments
+          </a>
+          <a href="admin-sections.html" class="sidebar-btn" id="sectionsBtn" data-page="sections">
+            🗂️ Sections
+          </a>
+          <a href="admin-courses.html" class="sidebar-btn" id="coursesBtn" data-page="courses">
+            📚 Courses
+          </a>
+          <a href="admin-timetable.html" class="sidebar-btn" id="timetableBtn" data-page="timetable">
+            📅 Timetable
+          </a>
+          <a href="admin-face-id.html" class="sidebar-btn" id="faceRegsBtn" data-page="face-id">
+            👤 Face ID
+          </a>
+          <a href="admin-promote.html" class="sidebar-btn active" id="promoteBtn" data-page="promote">
+            🎓 Promote
+          </a>
+          <a href="admin-analytics.html" class="sidebar-btn" id="analyticsBtn" data-page="analytics">
+            📈 Analytics
+          </a>
+        </div>
+
+        <div class="sidebar-footer">
+          <a href="admin-profile.html" class="sidebar-btn" id="profileBtn" data-page="profile">👤 Profile</a>
+          <button class="sidebar-btn" id="logoutBtn">🚪 Logout</button>
+        </div>
+      </aside>
+
+      <main class="app-shell__main">
+        <section class="desktop-dashboard">
+          <div class="main-content">
+            <div class="container">
+              <div id="promoteView">
+                <h3 class="section-gap">Promote Students to Next Semester</h3>
+                <div class="card">
+                  <form id="promoteForm">
+                    <div class="form-group">
+                      <label>Department</label>
+                      <select id="prDepartment">
+                        <option value="">All Departments</option>
+                        <option value="Computer Science & Engineering">
+                          Computer Science & Engineering
+                        </option>
+                        <option value="Information Technology">
+                          Information Technology
+                        </option>
+                        <option
+                          value="Electronics & Communication Engineering"
+                          >
+                          Electronics & Communication Engineering
+                        </option>
+                        <option value="Electrical & Electronics Engineering">
+                          Electrical & Electronics Engineering
+                        </option>
+                        <option value="Mechanical Engineering">
+                          Mechanical Engineering
+                        </option>
+                        <option value="Civil Engineering">
+                          Civil Engineering
+                        </option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label>From Semester</label>
+                      <select id="prFromSemester" required>
+                        <option value="">Select Semester</option>
+                        <option value="1">Semester 1 → 2</option>
+                        <option value="2">Semester 2 → 3</option>
+                        <option value="3">Semester 3 → 4</option>
+                        <option value="4">Semester 4 → 5</option>
+                        <option value="5">Semester 5 → 6</option>
+                        <option value="6">Semester 6 → 7</option>
+                        <option value="7">Semester 7 → 8</option>
+                        <option value="8">Semester 8 → Graduate</option>
+                      </select>
+                    </div>
+                    <div class="form-group">
+                      <label>Section</label>
+                      <select id="prSection">
+                        <option value="">All Sections</option>
+                        <option value="A">Section A</option>
+                        <option value="B">Section B</option>
+                      </select>
+                    </div>
+                    <div class="gap-sm flex-wrap">
+                      <button
+                        type="button"
+                        id="previewPromotionBtn"
+                        class="btn-secondary"
+                      >
+                        Preview
+                      </button>
+                      <button type="submit">Promote Students</button>
+                    </div>
+                    <p id="prMsg" class="error-msg"></p>
+                  </form>
+                </div>
+
+                <div id="promotionPreview" class="section-gap hidden">
+                  <h4 class="section-gap-sm">
+                    Students to be Promoted (<span id="previewCount">0</span>)
+                  </h4>
+                  <div class="card panel-scroll">
+                    <table id="previewTable" class="table-fill">
+                      <thead>
+                        <tr>
+                          <th>Name</th>
+                          <th>Email</th>
+                          <th>Department</th>
+                          <th>Current Sem</th>
+                          <th>Section</th>
+                        </tr>
+                      </thead>
+                      <tbody id="previewTableBody"></tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="config.js?v=20260526"></script>
+    <script>
+      // Set active sidebar link based on current page
+      document.addEventListener('DOMContentLoaded', function() {
+        const currentPage = window.location.pathname.split('/').pop().replace('.html', '') || 'dashboard';
+        const sidebarBtns = document.querySelectorAll('.sidebar-btn[data-page]');
+        sidebarBtns.forEach(btn => {
+          if (btn.dataset.page === currentPage) {
+            btn.classList.add('active');
+          } else {
+            btn.classList.remove('active');
+          }
+        });
+      });
+    </script>
+    <script type="module" src="assets/js/admin-promote.js?v=20260922"></script>
+    <script type="module" src="assets/js/mobile-nav.js?v=20260526"></script>
+    <nav class="mobile-bottom-nav" aria-label="Mobile navigation">
+      <a href="admin-dashboard.html" class="mobile-nav-item" data-target="dashboardBtn">
+        <span>🏠</span><span>Dashboard</span>
+      </a>
+      <a href="admin-users.html" class="mobile-nav-item" data-target="createUserBtn">
+        <span>👥</span><span>Users</span>
+      </a>
+      <a href="admin-analytics.html" class="mobile-nav-item" data-target="analyticsBtn">
+        <span>📈</span><span>Analytics</span>
+      </a>
+      <a href="admin-profile.html" class="mobile-nav-item" data-target="profileBtn">
+        <span>👤</span><span>Profile</span>
+      </a>
+    </nav>
+  </body>
+</html>

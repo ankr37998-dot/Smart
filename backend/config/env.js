@@ -20,9 +20,9 @@ export const env = {
   EMAIL_PORT: process.env.EMAIL_PORT || 587,
   EMAIL_USER: process.env.EMAIL_USER || "",
   EMAIL_PASS: process.env.EMAIL_PASS || "",
-  FRONTEND_URL: process.env.FRONTEND_URL || "http://localhost:5500",
+  FRONTEND_URL: process.env.FRONTEND_URL || "",
   /** Flask attendance shortage predictor (ml/app.py) */
-  ML_PREDICT_URL: process.env.ML_PREDICT_URL || "http://localhost:8000",
+  ML_PREDICT_URL: process.env.ML_PREDICT_URL || "",
   ML_TRAIN_SECRET: process.env.ML_TRAIN_SECRET || "",
   /** Face recognition runs locally via Python worker (backend/ml/face_worker.py).
    * No separate deployed service is required.
