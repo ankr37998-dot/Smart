@@ -736,6 +736,7 @@ async function loadStudentList(filters = {}) {
   try {
     let url = "/api/admin/users?role=student";
     if (filters.department) url += `&department=${encodeURIComponent(filters.department)}`;
+    if (filters.semester) url += `&semester=${encodeURIComponent(filters.semester)}`;
     if (filters.section) url += `&section=${encodeURIComponent(filters.section)}`;
 
     const users = await apiGet(url);
@@ -780,18 +781,22 @@ async function editStudent(data) {
   document.getElementById("csDepartment").value = data.dept;
   document.getElementById("csSemester").value = data.semester || "1";
 
-  // Load sections for the department, then set the section value
+  // Load sections for the student's department and semester.
   const csSection = document.getElementById("csSection");
   csSection.innerHTML = '<option value="">-- Not Assigned --</option>';
   if (data.dept) {
     try {
-      const sections = await apiGet(`/api/admin/sections?department=${encodeURIComponent(data.dept)}`);
+      const params = new URLSearchParams({ department: data.dept, semester: data.semester || "1" });
+      const sections = await apiGet(`/api/admin/sections?${params.toString()}`);
       sections.forEach(s => {
         csSection.innerHTML += `<option value="${s.name}">${s.name}${s.description ? ' - ' + s.description : ''}</option>`;
       });
     } catch (err) {
       console.error("Error loading sections:", err);
     }
+  }
+  if (data.section && ![...csSection.options].some(option => option.value === data.section)) {
+    csSection.add(new Option(`${data.section} (existing assignment)`, data.section));
   }
   csSection.value = data.section;
 
@@ -896,6 +901,15 @@ createStudentForm.addEventListener("submit", async (e) => {
 document.getElementById("studentFilterDept")?.addEventListener("change", () => {
   loadStudentList({
     department: document.getElementById("studentFilterDept").value,
+    semester: document.getElementById("studentFilterSemester").value,
+    section: document.getElementById("studentFilterSection").value
+  });
+});
+
+document.getElementById("studentFilterSemester")?.addEventListener("change", () => {
+  loadStudentList({
+    department: document.getElementById("studentFilterDept").value,
+    semester: document.getElementById("studentFilterSemester").value,
     section: document.getElementById("studentFilterSection").value
   });
 });
@@ -903,6 +917,7 @@ document.getElementById("studentFilterDept")?.addEventListener("change", () => {
 document.getElementById("studentFilterSection")?.addEventListener("change", () => {
   loadStudentList({
     department: document.getElementById("studentFilterDept").value,
+    semester: document.getElementById("studentFilterSemester").value,
     section: document.getElementById("studentFilterSection").value
   });
 });
@@ -913,8 +928,8 @@ async function loadStudentFilterSections() {
     const sections = await apiGet("/api/admin/sections");
     const filterSelect = document.getElementById("studentFilterSection");
     filterSelect.innerHTML = '<option value="">All Sections</option>';
-    sections.forEach(s => {
-      filterSelect.innerHTML += `<option value="${s.name}">${s.name}</option>`;
+    [...new Set(sections.map(section => section.name))].forEach(name => {
+      filterSelect.innerHTML += `<option value="${name}">${name}</option>`;
     });
   } catch (err) {
     console.error("Error loading filter sections:", err);
@@ -1375,6 +1390,7 @@ const createSectionForm = document.getElementById("createSectionForm");
 const secMsg = document.getElementById("secMsg");
 const sectionListBody = document.getElementById("sectionListBody");
 const sectionFilterDept = document.getElementById("sectionFilterDept");
+const sectionFilterSemester = document.getElementById("sectionFilterSemester");
 const sectionCreateCard = document.getElementById("sectionCreateCard");
 const showCreateSectionBtn = document.getElementById("showCreateSectionBtn");
 const closeCreateSectionBtn = document.getElementById("closeCreateSectionBtn");
@@ -1409,8 +1425,9 @@ function renderSectionList(sections) {
     <tr>
       <td><strong>${s.name}</strong></td>
       <td>${s.department}</td>
+      <td>${s.semester ? `Semester ${s.semester}` : "Unassigned"}</td>
       <td>
-        <button class="edit-section-btn" data-id="${s._id}" data-name="${s.name}" data-dept="${s.department}" data-description="${s.description || ''}">✏️ Edit</button>
+        <button class="edit-section-btn" data-id="${s._id}" data-name="${s.name}" data-dept="${s.department}" data-semester="${s.semester || ''}" data-description="${s.description || ''}">✏️ Edit</button>
         <button class="delete-section-btn" data-id="${s._id}" data-name="${s.name}" data-dept="${s.department}">🗑️ Delete</button>
       </td>
     </tr>
@@ -1421,6 +1438,7 @@ function renderSectionList(sections) {
       editingSectionId = btn.dataset.id;
       const secDepartment = document.getElementById("secDepartment");
       secDepartment.value = btn.dataset.dept || "";
+      document.getElementById("secSemester").value = btn.dataset.semester || "";
       document.getElementById("secName").value = btn.dataset.name || "";
       document.getElementById("secDescription").value = btn.dataset.description || "";
       if (sectionFormTitle) sectionFormTitle.textContent = "✏️ Edit Section";
@@ -1435,10 +1453,13 @@ function renderSectionList(sections) {
   });
 }
 
-async function loadSectionList(department = "") {
+async function loadSectionList(department = "", semester = "") {
   try {
-    let url = "/api/admin/sections";
-    if (department) url += `?department=${encodeURIComponent(department)}`;
+    const params = new URLSearchParams();
+    if (department) params.set("department", department);
+    if (semester) params.set("semester", semester);
+    const query = params.toString();
+    const url = query ? `/api/admin/sections?${query}` : "/api/admin/sections";
 
     sectionCache = await apiGet(url);
 
@@ -1448,11 +1469,12 @@ async function loadSectionList(department = "") {
         departments.map(d => `<option value="${d.name}">${d.name}</option>`).join("");
       sectionFilterDept.value = department;
     }
+    if (sectionFilterSemester) sectionFilterSemester.value = semester;
 
     renderSectionList(sectionCache);
   } catch (err) {
     console.error("Error loading sections:", err);
-    sectionListBody.innerHTML = '<tr><td colspan="3" style="text-align: center; color: red;">Error loading sections</td></tr>';
+    sectionListBody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: red;">Error loading sections</td></tr>';
   }
 }
 
@@ -1460,7 +1482,7 @@ async function deleteSection(id, name, dept) {
   if (!confirm(`Are you sure you want to delete section "${name}" from ${dept}?`)) return;
   try {
     await apiDelete(`/api/admin/sections/${id}`);
-    loadSectionList(sectionFilterDept.value);
+    loadSectionList(sectionFilterDept.value, sectionFilterSemester.value);
     loadStats();
   } catch (err) {
     alert("Error deleting section: " + err.message);
@@ -1474,6 +1496,7 @@ createSectionForm.addEventListener("submit", async (e) => {
   const sectionData = {
     name: document.getElementById("secName").value,
     department: document.getElementById("secDepartment").value,
+    semester: document.getElementById("secSemester").value,
     description: document.getElementById("secDescription").value
   };
 
@@ -1481,6 +1504,7 @@ createSectionForm.addEventListener("submit", async (e) => {
     if (editingSectionId) {
       await apiPut(`/api/admin/sections/${editingSectionId}`, {
         name: sectionData.name,
+        semester: sectionData.semester,
         description: sectionData.description
       });
     } else {
@@ -1497,7 +1521,7 @@ createSectionForm.addEventListener("submit", async (e) => {
     if (sectionSubmitBtn) sectionSubmitBtn.textContent = "Add Section";
     sectionCreateCard?.classList.add("hidden");
     document.body.classList.remove("department-modal-open");
-    loadSectionList(sectionFilterDept.value);
+    loadSectionList(sectionFilterDept.value, sectionFilterSemester.value);
     loadStats();
   } catch (err) {
     secMsg.style.color = "red";
@@ -1506,7 +1530,11 @@ createSectionForm.addEventListener("submit", async (e) => {
 });
 
 sectionFilterDept.addEventListener("change", () => {
-  renderSectionList(sectionCache.filter(section => !sectionFilterDept.value || section.department === sectionFilterDept.value));
+  loadSectionList(sectionFilterDept.value, sectionFilterSemester.value);
+});
+
+sectionFilterSemester.addEventListener("change", () => {
+  loadSectionList(sectionFilterDept.value, sectionFilterSemester.value);
 });
 
 // ===================== COURSE MANAGEMENT =====================
@@ -1683,7 +1711,9 @@ async function loadCourseDepartmentDropdowns() {
 // Load sections for student form dropdown based on selected department
 async function loadStudentSectionDropdown() {
   const csDepartment = document.getElementById("csDepartment");
+  const csSemester = document.getElementById("csSemester");
   const csSection = document.getElementById("csSection");
+  if (!csDepartment || !csSemester || !csSection || csDepartment.dataset.sectionEventsBound) return;
 
   async function updateSections() {
     const dept = csDepartment.value;
@@ -1691,7 +1721,8 @@ async function loadStudentSectionDropdown() {
 
     if (dept) {
       try {
-        const sections = await apiGet(`/api/admin/sections?department=${encodeURIComponent(dept)}`);
+        const params = new URLSearchParams({ department: dept, semester: csSemester.value });
+        const sections = await apiGet(`/api/admin/sections?${params.toString()}`);
         sections.forEach(s => {
           csSection.innerHTML += `<option value="${s.name}">${s.name}${s.description ? ' - ' + s.description : ''}</option>`;
         });
@@ -1702,6 +1733,8 @@ async function loadStudentSectionDropdown() {
   }
 
   csDepartment.addEventListener("change", updateSections);
+  csSemester.addEventListener("change", updateSections);
+  csDepartment.dataset.sectionEventsBound = "true";
 }
 
 analyticsForm.addEventListener("submit", async (e) => {
@@ -2096,7 +2129,11 @@ async function loadSectionsForSelectedCourse() {
   if (selectedOption.value && selectedOption.dataset.dept) {
     try {
       const deptName = selectedOption.dataset.dept;
-      const sections = await apiGet(`/api/admin/sections?department=${encodeURIComponent(deptName)}`);
+      const params = new URLSearchParams({
+        department: deptName,
+        semester: selectedOption.dataset.sem || ""
+      });
+      const sections = await apiGet(`/api/admin/sections?${params.toString()}`);
       sections.forEach(s => {
         slotSection.innerHTML += `<option value="${s.name}">${s.name}${s.description ? ' - ' + s.description : ''}</option>`;
       });

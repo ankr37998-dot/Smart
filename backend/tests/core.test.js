@@ -4,6 +4,7 @@ import test from "node:test";
 import vm from "node:vm";
 import { calculateDistance, normalizeLocation } from "../utils/geofence.js";
 import { summarizeAttendance } from "../utils/attendanceMetrics.js";
+import Section from "../models/Section.js";
 
 test("normalizes valid coordinates and rejects out-of-range or inaccurate locations", () => {
     assert.deepEqual(normalizeLocation("37.5", "-122.2", "5"), {
@@ -35,6 +36,18 @@ test("attendance percentages include expected and unmarked student sessions", ()
         totalMarked: 0,
         presentCount: 0
     }).averageAttendance, 0);
+});
+
+test("sections support semester-specific names", () => {
+    const semesterPath = Section.schema.path("semester");
+    assert.equal(semesterPath.instance, "String");
+    assert.deepEqual(semesterPath.enumValues, ["1", "2", "3", "4", "5", "6", "7", "8"]);
+
+    const [keys, options] = Section.schema.indexes().find(([index]) =>
+        index.name === 1 && index.department === 1 && index.semester === 1
+    );
+    assert.deepEqual(keys, { name: 1, department: 1, semester: 1 });
+    assert.equal(options.unique, true);
 });
 
 test("runtime API config ignores untrusted query overrides", () => {

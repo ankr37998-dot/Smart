@@ -17,6 +17,7 @@ import analyticsRoutes from "./routes/analyticsRoutes.js";
 import mlRoutes from "./routes/mlRoutes.js";
 import { User } from "./models/User.js";
 import { Class } from "./models/Class.js";
+import { ensureSectionSemesterIndex } from "./models/Section.js";
 import { notFound, errorHandler } from "./middleware/errorHandler.js";
 import { verifyToken } from "./utils/jwt.js";
 
@@ -231,6 +232,7 @@ const ensureDefaultAdmin = async () => {
 
 const startServer = async () => {
   await connectDB();
+  await ensureSectionSemesterIndex();
   await ensureDefaultAdmin();
 
   server.listen(PORT, "0.0.0.0", () => {

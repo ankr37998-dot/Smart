@@ -860,11 +860,12 @@ export const saveFacultySchedule = async (req, res, next) => {
 // GET /admin/sections - List all sections (optionally filter by department)
 export const listSections = async (req, res, next) => {
   try {
-    const { department } = req.query;
+    const { department, semester } = req.query;
     const filter = { isActive: true };
     if (department) filter.department = department;
+    if (semester) filter.semester = semester;
 
-    const sections = await Section.find(filter).sort({ department: 1, name: 1 });
+    const sections = await Section.find(filter).sort({ department: 1, semester: 1, name: 1 });
     res.json(sections);
   } catch (err) {
     next(err);
@@ -874,24 +875,29 @@ export const listSections = async (req, res, next) => {
 // POST /admin/sections - Create a new section
 export const createSection = async (req, res, next) => {
   try {
-    const { name, department, description } = req.body;
+    const { name, department, semester, description } = req.body;
 
-    if (!name || !department) {
-      return res.status(400).json({ message: "Section name and department are required" });
+    if (!name || !department || !semester) {
+      return res.status(400).json({ message: "Section name, department, and semester are required" });
+    }
+    const normalizedSemester = String(semester);
+    if (!/^[1-8]$/.test(normalizedSemester)) {
+      return res.status(400).json({ message: "Semester must be between 1 and 8" });
     }
 
-    // Check if section already exists in this department
     const existing = await Section.findOne({
       name: name.toUpperCase(),
-      department
+      department,
+      semester: normalizedSemester
     });
     if (existing) {
-      return res.status(409).json({ message: "Section already exists in this department" });
+      return res.status(409).json({ message: "Section already exists in this department and semester" });
     }
 
     const section = await Section.create({
       name: name.toUpperCase(),
       department,
+      semester: normalizedSemester,
       description
     });
 
@@ -905,14 +911,33 @@ export const createSection = async (req, res, next) => {
 export const updateSection = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, description, isActive } = req.body;
+    const { name, semester, description, isActive } = req.body;
 
     const section = await Section.findById(id);
     if (!section) {
       return res.status(404).json({ message: "Section not found" });
     }
 
-    if (name) section.name = name.toUpperCase();
+    const nextName = name ? name.toUpperCase() : section.name;
+    const nextSemester = semester === undefined ? section.semester : String(semester);
+    if (semester !== undefined && !/^[1-8]$/.test(nextSemester)) {
+      return res.status(400).json({ message: "Semester must be between 1 and 8" });
+    }
+
+    if (nextSemester && (name || semester !== undefined)) {
+      const duplicate = await Section.findOne({
+        _id: { $ne: id },
+        name: nextName,
+        department: section.department,
+        semester: nextSemester
+      });
+      if (duplicate) {
+        return res.status(409).json({ message: "Section already exists in this department and semester" });
+      }
+    }
+
+    if (name) section.name = nextName;
+    if (semester !== undefined) section.semester = nextSemester;
     if (description !== undefined) section.description = description;
     if (isActive !== undefined) section.isActive = isActive;
 
