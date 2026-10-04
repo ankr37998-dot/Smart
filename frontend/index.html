@@ -28,7 +28,7 @@
     </script>
     <link
       rel="stylesheet"
-      href="assets/css/styles.css?v=20260922-layout-fix-v1"
+      href="assets/css/styles.css?v=20260920-apple-ui-v7"
     />
   </head>
   <body class="auth-page antialiased">
@@ -94,40 +94,6 @@
         </div>
 
         <p id="loginError" class="form-error"></p>
-
-        <!-- Quick Demo Login Helpers -->
-        <div class="demo-logins-bar">
-          <div class="demo-logins-title">Quick Demo Login</div>
-          <div class="demo-pills-list">
-            <button
-              type="button"
-              class="demo-pill-btn"
-              data-role="admin"
-              data-email="admin@example.com"
-              data-pass="admin123"
-            >
-              👑 Admin
-            </button>
-            <button
-              type="button"
-              class="demo-pill-btn"
-              data-role="faculty"
-              data-email="faculty@example.com"
-              data-pass="faculty123"
-            >
-              👨‍🏫 Faculty
-            </button>
-            <button
-              type="button"
-              class="demo-pill-btn"
-              data-role="student"
-              data-email="student@example.com"
-              data-pass="student123"
-            >
-              🎓 Student
-            </button>
-          </div>
-        </div>
       </form>
     </div>
 
@@ -141,28 +107,6 @@
         const isPass = passInput.type === "password";
         passInput.type = isPass ? "text" : "password";
         toggleBtn.textContent = isPass ? "🙈" : "👁️";
-      });
-
-      // Quick Demo Fill
-      document.querySelectorAll(".demo-pill-btn").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const role = btn.getAttribute("data-role");
-          const email = btn.getAttribute("data-email");
-          const pass = btn.getAttribute("data-pass");
-
-          const roleSelect = document.getElementById("role");
-          const emailInput = document.getElementById("email");
-          const passInput = document.getElementById("password");
-          const errEl = document.getElementById("loginError");
-
-          if (roleSelect) roleSelect.value = role;
-          if (emailInput) emailInput.value = email;
-          if (passInput) passInput.value = pass;
-          if (errEl) errEl.textContent = "";
-
-          // Focus the submit button
-          document.querySelector('button[type="submit"]')?.focus();
-        });
       });
     </script>
   </body>

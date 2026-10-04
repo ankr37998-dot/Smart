@@ -3,8 +3,9 @@ import { Class } from "../models/Class.js";
 import { AttendanceSession } from "../models/AttendanceSession.js";
 import { AttendanceRecord } from "../models/AttendanceRecord.js";
 import { FaceVerification } from "../models/FaceVerification.js";
+import { User } from "../models/User.js";
 import { sendLowAttendanceEmail } from "../utils/mailer.js";
-import { calculateDistance } from "../utils/geofence.js";
+import { calculateDistance, normalizeLocation } from "../utils/geofence.js";
 
 export const myClasses = async (req, res, next) => {
   try {
@@ -20,22 +21,22 @@ export const myClasses = async (req, res, next) => {
 export const studentDashboard = async (req, res, next) => {
   try {
     const studentId = req.user._id;
-
-    const records = await AttendanceRecord.find({ studentId })
-      .populate({
-        path: "sessionId",
-        populate: { path: "classId" }
-      })
-      .lean();
-
     const enrolledClasses = await Class.find({
       department: req.user.department,
       semester: req.user.semester,
       section: req.user.section
     }).lean();
     const totalClasses = enrolledClasses.length;
+    const classIds = enrolledClasses.map((cls) => cls._id);
+    const now = new Date();
+    const sessions = classIds.length
+      ? await AttendanceSession.find({
+        classId: { $in: classIds },
+        $or: [{ isActive: false }, { expiresAt: { $lte: now } }]
+      }).populate("classId").lean()
+      : [];
 
-    if (!records.length) {
+    if (!sessions.length) {
       return res.json({
         overallPercentage: 0,
         subjects: [],
@@ -46,9 +47,18 @@ export const studentDashboard = async (req, res, next) => {
       });
     }
 
+    const sessionIds = sessions.map((session) => session._id);
+    const records = await AttendanceRecord.find({
+      studentId,
+      sessionId: { $in: sessionIds }
+    }).select("sessionId status").lean();
+    const recordsBySession = new Map(
+      records.map((record) => [record.sessionId.toString(), record])
+    );
+
     const perClass = new Map();
-    for (const rec of records) {
-      const cls = rec.sessionId?.classId;
+    for (const session of sessions) {
+      const cls = session.classId;
       if (!cls) continue;
       const key = cls._id.toString();
       if (!perClass.has(key)) {
@@ -64,7 +74,9 @@ export const studentDashboard = async (req, res, next) => {
       }
       const agg = perClass.get(key);
       agg.total += 1;
-      if (rec.status === "present") agg.present += 1;
+      if (recordsBySession.get(session._id.toString())?.status === "present") {
+        agg.present += 1;
+      }
     }
 
     let totalOverall = 0;
@@ -93,13 +105,27 @@ export const studentDashboard = async (req, res, next) => {
       }
     }
 
-    // Send low attendance email if overall < 75 (basic implementation)
     if (overallPercentage < 75 && req.user.email) {
-      try {
-        await sendLowAttendanceEmail(req.user.email, overallPercentage);
-      } catch (e) {
-        // log and ignore email errors
-        console.error("Failed to send low attendance email", e.message);
+      const sentAt = new Date();
+      const cooldownStart = new Date(sentAt.getTime() - 24 * 60 * 60 * 1000);
+      const alertClaim = await User.findOneAndUpdate(
+        {
+          _id: studentId,
+          $or: [
+            { lowAttendanceAlertSentAt: { $exists: false } },
+            { lowAttendanceAlertSentAt: { $lte: cooldownStart } }
+          ]
+        },
+        { $set: { lowAttendanceAlertSentAt: sentAt } },
+        { new: true }
+      ).select("_id");
+
+      if (alertClaim) {
+        try {
+          await sendLowAttendanceEmail(req.user.email, overallPercentage);
+        } catch (e) {
+          console.error("Failed to send low attendance email", e.message);
+        }
       }
     }
 
@@ -140,18 +166,6 @@ export const markAttendance = async (req, res, next) => {
       });
     }
 
-    const faceProof = await FaceVerification.consumeToken(
-      faceVerificationToken.trim(),
-      studentId
-    );
-    if (!faceProof) {
-      console.warn("markAttendance: invalid or expired face token", { studentId });
-      return res.status(403).json({
-        message: "Face verification expired or invalid. Please verify your face again.",
-        code: "FACE_VERIFICATION_INVALID",
-      });
-    }
-
     const now = new Date();
     const session = await AttendanceSession.findOne({
       qrToken: qrToken.trim(),
@@ -165,22 +179,12 @@ export const markAttendance = async (req, res, next) => {
     }
 
     // Location validation
-    if (latitude === undefined || longitude === undefined || accuracy === undefined) {
-      return res.status(400).json({ success: false, message: "Location permission required" });
-    }
-
-    const latNum = Number(latitude);
-    const lngNum = Number(longitude);
-    const accNum = Number(accuracy);
-
-    if (!isFinite(latNum) || !isFinite(lngNum) || !isFinite(accNum)) {
-      return res.status(400).json({ success: false, message: "Invalid location data" });
-    }
-    if (latNum < -90 || latNum > 90 || lngNum < -180 || lngNum > 180) {
-      return res.status(400).json({ success: false, message: "Invalid location data" });
-    }
-    if (accNum > 20) {
-      return res.status(400).json({ success: false, message: "Location accuracy too low" });
+    const location = normalizeLocation(latitude, longitude, accuracy);
+    if (!location) {
+      return res.status(400).json({
+        success: false,
+        message: "Valid location with accuracy of 20 meters or better is required"
+      });
     }
 
     // Session must have location
@@ -190,7 +194,7 @@ export const markAttendance = async (req, res, next) => {
     }
 
     // Calculate distance between student and session
-    const distance = calculateDistance(latNum, lngNum, session.latitude, session.longitude);
+    const distance = calculateDistance(location.latitude, location.longitude, session.latitude, session.longitude);
     if (distance === null) {
       return res.status(400).json({ success: false, message: "Invalid location data" });
     }
@@ -217,6 +221,18 @@ export const markAttendance = async (req, res, next) => {
       return res.status(409).json({ message: "Attendance already marked for this session" });
     }
 
+    const faceProof = await FaceVerification.consumeToken(
+      faceVerificationToken.trim(),
+      studentId
+    );
+    if (!faceProof) {
+      console.warn("markAttendance: invalid or expired face token", { studentId });
+      return res.status(403).json({
+        message: "Face verification expired or invalid. Please verify your face again.",
+        code: "FACE_VERIFICATION_INVALID",
+      });
+    }
+
     try {
       const ipAddress = (req.headers["x-forwarded-for"] || req.ip || "").toString().split(",")[0].trim();
       const userAgent = req.get("User-Agent") || "";
@@ -225,9 +241,9 @@ export const markAttendance = async (req, res, next) => {
         sessionId: session._id,
         studentId,
         status: "present",
-        latitude: latNum,
-        longitude: lngNum,
-        accuracy: accNum,
+        latitude: location.latitude,
+        longitude: location.longitude,
+        accuracy: location.accuracy,
         distanceFromSession: Math.round(distance),
         markedAt: new Date(),
         ipAddress,
@@ -287,26 +303,26 @@ export const getProfile = async (req, res, next) => {
 export const getTimetable = async (req, res, next) => {
   try {
     const { department, semester, section } = req.user;
-    
+
     // Import TimeTable model
     const { TimeTable } = await import("../models/TimeTable.js");
-    
+
     // Fetch timetable for student's department, semester, and section
-    const timetable = await TimeTable.findOne({ 
-      department, 
-      semester: String(semester), 
-      section 
+    const timetable = await TimeTable.findOne({
+      department,
+      semester: String(semester),
+      section
     });
-    
+
     if (!timetable) {
       return res.json([]);
     }
-    
+
     // Transform timetable data for frontend
     // Collect all unique time slots across all days
     const timeSlots = new Map();
     const days = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-    
+
     days.forEach(day => {
       const daySchedule = timetable.schedule[day] || [];
       daySchedule.forEach(slot => {
@@ -332,12 +348,12 @@ export const getTimetable = async (req, res, next) => {
         };
       });
     });
-    
+
     // Sort by start time and convert to array
-    const result = Array.from(timeSlots.values()).sort((a, b) => 
+    const result = Array.from(timeSlots.values()).sort((a, b) =>
       a.startTime.localeCompare(b.startTime)
     );
-    
+
     res.json(result);
   } catch (err) {
     console.error("getTimetable error:", err.message);
@@ -373,15 +389,15 @@ export const getActiveSessions = async (req, res, next) => {
     const result = sessions
       .filter((session) => session.classId)
       .map((session) => ({
-      sessionId: session._id,
-      classId: session.classId._id,
-      courseCode: session.classId.courseCode,
-      courseName: session.classId.courseName,
-      qrToken: session.qrToken,
-      expiresAt: session.expiresAt,
-      createdAt: session.createdAt,
-      alreadyMarked: markedSessionIds.has(session._id.toString())
-    }));
+        sessionId: session._id,
+        classId: session.classId._id,
+        courseCode: session.classId.courseCode,
+        courseName: session.classId.courseName,
+        qrToken: session.qrToken,
+        expiresAt: session.expiresAt,
+        createdAt: session.createdAt,
+        alreadyMarked: markedSessionIds.has(session._id.toString())
+      }));
 
     res.json(result);
   } catch (err) {
@@ -404,7 +420,7 @@ export const getAttendance = async (req, res, next) => {
     endOfDay.setHours(23, 59, 59, 999);
 
     const { department, semester, section } = req.user;
-    
+
     // Find classes for this student
     const classes = await Class.find({ department, semester, section });
     const classIds = classes.map(c => c._id);
@@ -440,7 +456,7 @@ export const getAttendance = async (req, res, next) => {
 export const getTodayAttendance = async (req, res, next) => {
   try {
     const { department, semester, section } = req.user;
-    
+
     // Get today's date range
     const now = new Date();
     const startOfDay = new Date(now);
@@ -459,7 +475,7 @@ export const getTodayAttendance = async (req, res, next) => {
     }).populate("classId").sort({ createdAt: -1 });
 
     const results = [];
-    
+
     for (const session of sessions) {
       if (!session.classId) continue;
       const record = await AttendanceRecord.findOne({

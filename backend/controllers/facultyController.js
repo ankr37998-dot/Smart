@@ -53,15 +53,16 @@ import { AttendanceRecord } from "../models/AttendanceRecord.js";
 import { TimeTable } from "../models/TimeTable.js";
 import { FacultySchedule } from "../models/FacultySchedule.js";
 import { User } from "../models/User.js";
+import { normalizeLocation } from "../utils/geofence.js";
 
 export const myClasses = async (req, res, next) => {
   try {
     // First try to get classes from the old Class model (for backwards compatibility)
     const classesFromClassModel = await Class.find({ facultyId: req.user._id });
-    
+
     // Also get classes from FacultySchedule (new approach)
     const facultySchedule = await FacultySchedule.findOne({ facultyId: req.user._id });
-    
+
     // Extract unique classes from the schedule
     const classesFromSchedule = [];
     if (facultySchedule && facultySchedule.schedule) {
@@ -72,7 +73,7 @@ export const myClasses = async (req, res, next) => {
           const key = `${slot.courseCode}-${slot.department}-${slot.semester}-${slot.section}`;
           if (!seenCourses.has(key) && slot.courseCode) {
             seenCourses.add(key);
-            
+
             // Try to find actual Class document for this course
             const actualClass = await Class.findOne({
               courseCode: slot.courseCode,
@@ -80,7 +81,7 @@ export const myClasses = async (req, res, next) => {
               semester: slot.semester,
               section: slot.section
             });
-            
+
             classesFromSchedule.push({
               _id: actualClass?._id || slot.classId || slot.courseId || slot._id,
               courseCode: slot.courseCode,
@@ -94,16 +95,16 @@ export const myClasses = async (req, res, next) => {
         }
       }
     }
-    
+
     // Merge both sources, preferring Class model if available
     let allClasses = [];
-    
+
     if (classesFromClassModel.length > 0) {
       allClasses = classesFromClassModel;
     } else if (classesFromSchedule.length > 0) {
       allClasses = classesFromSchedule;
     }
-    
+
     res.json(allClasses);
   } catch (err) {
     next(err);
@@ -114,13 +115,13 @@ export const myClasses = async (req, res, next) => {
 export const getMySchedule = async (req, res, next) => {
   try {
     const facultyId = req.user._id;
-    
+
     // Get schedule from FacultySchedule model
     let schedule = await FacultySchedule.findOne({ facultyId });
-    
+
     // If no schedule exists, return empty
     if (!schedule) {
-      return res.json({ 
+      return res.json({
         schedule: {
           monday: [],
           tuesday: [],
@@ -129,28 +130,28 @@ export const getMySchedule = async (req, res, next) => {
           friday: [],
           saturday: []
         },
-        message: "No schedule assigned yet" 
+        message: "No schedule assigned yet"
       });
     }
-    
+
     // Get today's classes with session status
     const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     const today = days[new Date().getDay()];
-    
+
     const todayClasses = schedule.schedule[today] || [];
-    
+
     // Check session status for each class today
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
-    
+
     const enrichedTodayClasses = await Promise.all(todayClasses.map(async (slot) => {
       const session = await AttendanceSession.findOne({
         classId: slot.classId,
         createdAt: { $gte: todayStart, $lte: todayEnd }
       }).sort({ createdAt: -1 });
-      
+
       return {
         ...slot.toObject ? slot.toObject() : slot,
         hasSession: !!session,
@@ -158,8 +159,8 @@ export const getMySchedule = async (req, res, next) => {
         sessionId: session?._id
       };
     }));
-    
-    res.json({ 
+
+    res.json({
       schedule: schedule.schedule,
       todayClasses: enrichedTodayClasses,
       today
@@ -187,12 +188,12 @@ export const getMyTimetable = async (req, res, next) => {
     if (myClasses.length === 0) {
       return res.json({ schedule: {}, classes: [] });
     }
-    
+
     // Get unique department/semester/section combinations
-    const combinations = [...new Set(myClasses.map(c => 
+    const combinations = [...new Set(myClasses.map(c =>
       `${c.department}|${c.semester}|${c.section}`
     ))];
-    
+
     // Fetch timetables for these combinations
     const timetables = await TimeTable.find({
       $or: combinations.map(combo => {
@@ -200,7 +201,7 @@ export const getMyTimetable = async (req, res, next) => {
         return { department, semester, section };
       })
     });
-    
+
     // Build faculty's personal schedule
     const facultySchedule = {
       monday: [],
@@ -210,23 +211,23 @@ export const getMyTimetable = async (req, res, next) => {
       friday: [],
       saturday: []
     };
-    
+
     const myCourses = myClasses.map(c => c.courseCode);
-    
+
     for (const tt of timetables) {
       for (const day of Object.keys(facultySchedule)) {
         if (!tt.schedule[day]) continue;
-        
+
         for (const slot of tt.schedule[day]) {
           if (myCourses.includes(slot.courseCode)) {
             // Find the class ID for this course
-            const cls = myClasses.find(c => 
-              c.courseCode === slot.courseCode && 
+            const cls = myClasses.find(c =>
+              c.courseCode === slot.courseCode &&
               c.department === tt.department &&
               c.semester === tt.semester &&
               c.section === tt.section
             );
-            
+
             facultySchedule[day].push({
               ...slot.toObject ? slot.toObject() : slot,
               classId: cls?._id,
@@ -237,13 +238,13 @@ export const getMyTimetable = async (req, res, next) => {
           }
         }
       }
-      
+
       // Sort each day by start time
       for (const day of Object.keys(facultySchedule)) {
         facultySchedule[day].sort((a, b) => a.startTime.localeCompare(b.startTime));
       }
     }
-    
+
     res.json({ schedule: facultySchedule, classes: myClasses });
   } catch (err) {
     next(err);
@@ -254,53 +255,53 @@ export const getMyTimetable = async (req, res, next) => {
 export const getCurrentClass = async (req, res, next) => {
   try {
     const myClasses = await Class.find({ facultyId: req.user._id });
-    
+
     if (myClasses.length === 0) {
       return res.json({ currentClass: null });
     }
-    
+
     const now = new Date();
     const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
     const today = days[now.getDay()];
-    
+
     if (today === 'sunday') {
       return res.json({ currentClass: null, message: "No classes on Sunday" });
     }
-    
+
     const currentTime = now.getHours() * 60 + now.getMinutes();
     const myCourses = myClasses.map(c => c.courseCode);
-    
+
     // Get all relevant timetables
-    const combinations = [...new Set(myClasses.map(c => 
+    const combinations = [...new Set(myClasses.map(c =>
       `${c.department}|${c.semester}|${c.section}`
     ))];
-    
+
     const timetables = await TimeTable.find({
       $or: combinations.map(combo => {
         const [department, semester, section] = combo.split('|');
         return { department, semester, section };
       })
     });
-    
+
     let currentClass = null;
     let upcomingClass = null;
-    
+
     for (const tt of timetables) {
       if (!tt.schedule[today]) continue;
-      
+
       for (const slot of tt.schedule[today]) {
         if (!myCourses.includes(slot.courseCode)) continue;
-        
+
         const [startH, startM] = slot.startTime.split(':').map(Number);
         const [endH, endM] = slot.endTime.split(':').map(Number);
         const startMinutes = startH * 60 + startM;
         const endMinutes = endH * 60 + endM;
-        
-        const cls = myClasses.find(c => 
-          c.courseCode === slot.courseCode && 
+
+        const cls = myClasses.find(c =>
+          c.courseCode === slot.courseCode &&
           c.department === tt.department
         );
-        
+
         // Current class
         if (currentTime >= startMinutes && currentTime < endMinutes) {
           currentClass = {
@@ -313,7 +314,7 @@ export const getCurrentClass = async (req, res, next) => {
           };
           break;
         }
-        
+
         // Upcoming class (within next 30 minutes)
         if (currentTime < startMinutes && startMinutes - currentTime <= 30) {
           if (!upcomingClass || startMinutes < upcomingClass.startMinutes) {
@@ -329,11 +330,11 @@ export const getCurrentClass = async (req, res, next) => {
           }
         }
       }
-      
+
       if (currentClass) break;
     }
-    
-    res.json({ 
+
+    res.json({
       currentClass: currentClass || upcomingClass,
       serverTime: now.toISOString()
     });
@@ -345,8 +346,12 @@ export const getCurrentClass = async (req, res, next) => {
 // POST /faculty/auto-session - Create session for current scheduled class
 export const autoStartSession = async (req, res, next) => {
   try {
-    const { classId, courseCode, courseName, department, semester, section } = req.body;
-    
+    const { classId, courseCode, courseName, department, semester, section, latitude, longitude, accuracy } = req.body;
+    const location = normalizeLocation(latitude, longitude, accuracy);
+    if (!location) {
+      return res.status(400).json({ message: "Valid faculty location with accuracy of 20 meters or better is required" });
+    }
+
     // Helper to get today's date range
     const getTodayRange = () => {
       const todayStart = new Date();
@@ -355,18 +360,18 @@ export const autoStartSession = async (req, res, next) => {
       todayEnd.setHours(23, 59, 59, 999);
       return { todayStart, todayEnd };
     };
-    
+
     // If we have schedule data (courseCode, department, etc.), use that
     if (courseCode && department) {
       // Find or create a class for this faculty+course combination
-      let cls = await Class.findOne({ 
+      let cls = await Class.findOne({
         facultyId: req.user._id,
         courseCode,
         department,
         semester: semester?.toString(),
         section: section || ''
       });
-      
+
       // If no class exists, create one from schedule data
       if (!cls) {
         cls = await Class.create({
@@ -378,22 +383,30 @@ export const autoStartSession = async (req, res, next) => {
           section: section || 'A'
         });
       }
-      
+
       // Check if there's any session today for this class (not just active)
       const { todayStart, todayEnd } = getTodayRange();
       const existingSession = await AttendanceSession.findOne({
         classId: cls._id,
         createdAt: { $gte: todayStart, $lte: todayEnd }
       }).sort({ createdAt: -1 }); // Get the most recent one
-      
+
       if (existingSession) {
+        let shouldSave = false;
         // Reactivate if needed (extend expiry by 30 min from now if expired)
         if (!existingSession.isActive || existingSession.expiresAt < new Date()) {
           existingSession.isActive = true;
           existingSession.expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+          shouldSave = true;
+        }
+        if (existingSession.latitude == null || existingSession.longitude == null) {
+          Object.assign(existingSession, location);
+          shouldSave = true;
+        }
+        if (shouldSave) {
           await existingSession.save();
         }
-        
+
         return res.json({
           id: existingSession._id,
           classId: cls._id,
@@ -405,20 +418,21 @@ export const autoStartSession = async (req, res, next) => {
           className: `${department} - ${courseCode} (${section || ''})`
         });
       }
-      
+
       // Create new session
       const now = new Date();
       const expiresAt = new Date(now.getTime() + 30 * 60 * 1000);
       const qrToken = crypto.randomBytes(16).toString("hex");
-      
+
       const session = await AttendanceSession.create({
         classId: cls._id,
         qrToken,
+        ...location,
         createdAt: now,
         expiresAt,
         isActive: true
       });
-      
+
       return res.status(201).json({
         id: session._id,
         classId: cls._id,
@@ -429,29 +443,37 @@ export const autoStartSession = async (req, res, next) => {
         className: `${department} - ${courseCode} (${section || ''})`
       });
     }
-    
+
     // Legacy: If classId provided, use it directly
     if (classId && mongoose.Types.ObjectId.isValid(classId)) {
       const cls = await Class.findOne({ _id: classId, facultyId: req.user._id });
       if (!cls) {
         return res.status(403).json({ message: "You are not assigned to this class" });
       }
-      
+
       // Check if there's any session today for this class
       const { todayStart, todayEnd } = getTodayRange();
       const existingSession = await AttendanceSession.findOne({
         classId,
         createdAt: { $gte: todayStart, $lte: todayEnd }
       }).sort({ createdAt: -1 });
-      
+
       if (existingSession) {
+        let shouldSave = false;
         // Reactivate if needed
         if (!existingSession.isActive || existingSession.expiresAt < new Date()) {
           existingSession.isActive = true;
           existingSession.expiresAt = new Date(Date.now() + 30 * 60 * 1000);
+          shouldSave = true;
+        }
+        if (existingSession.latitude == null || existingSession.longitude == null) {
+          Object.assign(existingSession, location);
+          shouldSave = true;
+        }
+        if (shouldSave) {
           await existingSession.save();
         }
-        
+
         return res.json({
           id: existingSession._id,
           classId: existingSession.classId,
@@ -462,20 +484,21 @@ export const autoStartSession = async (req, res, next) => {
           existing: true
         });
       }
-      
+
       // Create new session
       const now = new Date();
       const expiresAt = new Date(now.getTime() + 30 * 60 * 1000);
       const qrToken = crypto.randomBytes(16).toString("hex");
-      
+
       const session = await AttendanceSession.create({
         classId,
         qrToken,
+        ...location,
         createdAt: now,
         expiresAt,
         isActive: true
       });
-      
+
       return res.status(201).json({
         id: session._id,
         classId: session.classId,
@@ -486,7 +509,7 @@ export const autoStartSession = async (req, res, next) => {
         className: `${cls.department} - ${cls.courseCode} (${cls.section})`
       });
     }
-    
+
     return res.status(400).json({ message: "courseCode and department OR classId is required" });
   } catch (err) {
     next(err);
@@ -497,19 +520,19 @@ export const autoStartSession = async (req, res, next) => {
 export const getClassStudents = async (req, res, next) => {
   try {
     const { classId } = req.params;
-    
+
     const cls = await Class.findOne({ _id: classId, facultyId: req.user._id });
     if (!cls) {
       return res.status(403).json({ message: "You are not assigned to this class" });
     }
-    
+
     const students = await User.find({
       role: "student",
       department: cls.department,
       semester: cls.semester,
       section: cls.section
     }).select("name email rollNo department semester section");
-    
+
     res.json(students);
   } catch (err) {
     next(err);
@@ -519,7 +542,12 @@ export const getClassStudents = async (req, res, next) => {
 // POST /faculty/start-session
 export const startSession = async (req, res, next) => {
   try {
-    const { classId } = req.body;
+    const { classId, latitude, longitude, accuracy } = req.body;
+    const location = normalizeLocation(latitude, longitude, accuracy);
+
+    if (!location) {
+      return res.status(400).json({ message: "Valid faculty location with accuracy of 20 meters or better is required" });
+    }
 
     if (!classId || !mongoose.Types.ObjectId.isValid(classId)) {
       return res.status(400).json({ message: "Valid classId is required" });
@@ -538,6 +566,7 @@ export const startSession = async (req, res, next) => {
     const session = await AttendanceSession.create({
       classId,
       qrToken,
+      ...location,
       createdAt: now,
       expiresAt,
       isActive: true
@@ -607,26 +636,26 @@ export const classSessions = async (req, res, next) => {
 export const saveAttendance = async (req, res, next) => {
   try {
     const { sessionId, attendance } = req.body;
-    
+
     if (!sessionId || !mongoose.Types.ObjectId.isValid(sessionId)) {
       return res.status(400).json({ message: "Valid sessionId is required" });
     }
-    
+
     if (!attendance || !Array.isArray(attendance)) {
       return res.status(400).json({ message: "Attendance array is required" });
     }
-    
+
     // Verify the session exists and belongs to faculty's class
     const session = await AttendanceSession.findById(sessionId);
     if (!session) {
       return res.status(404).json({ message: "Session not found" });
     }
-    
+
     const cls = await Class.findOne({ _id: session.classId, facultyId: req.user._id });
     if (!cls) {
       return res.status(403).json({ message: "You are not authorized for this session" });
     }
-    
+
     // Save attendance records
     const operations = attendance.map(record => ({
       updateOne: {
@@ -643,7 +672,7 @@ export const saveAttendance = async (req, res, next) => {
       }
     }));
     await AttendanceRecord.bulkWrite(operations);
-    res.json({ 
+    res.json({
       message: "Attendance saved successfully",
       saved: attendance.length
     });
@@ -656,40 +685,40 @@ export const saveAttendance = async (req, res, next) => {
 export const endSession = async (req, res, next) => {
   try {
     const { sessionId } = req.params;
-    
+
     if (!sessionId || !mongoose.Types.ObjectId.isValid(sessionId)) {
       return res.status(400).json({ message: "Valid sessionId is required" });
     }
-    
+
     // Find the session
     const session = await AttendanceSession.findById(sessionId);
     if (!session) {
       return res.status(404).json({ message: "Session not found" });
     }
-    
+
     // Verify the session belongs to faculty's class
     const cls = await Class.findOne({ _id: session.classId, facultyId: req.user._id });
     if (!cls) {
       return res.status(403).json({ message: "You are not authorized to end this session" });
     }
-    
+
     // Check if session is already ended
     if (!session.isActive) {
       return res.status(400).json({ message: "Session is already ended" });
     }
-    
+
     // End the session
     session.isActive = false;
     session.endedAt = new Date();
     await session.save();
-    
+
     // Get attendance count for this session
-    const attendanceCount = await AttendanceRecord.countDocuments({ 
+    const attendanceCount = await AttendanceRecord.countDocuments({
       sessionId: session._id,
       status: "present"
     });
-    
-    res.json({ 
+
+    res.json({
       message: "Session ended successfully",
       sessionId: session._id,
       endedAt: session.endedAt,
@@ -754,13 +783,13 @@ export const manualMarkAttendance = async (req, res, next) => {
 
     // Check for existing attendance record
     const existingRecord = await AttendanceRecord.findOne({ sessionId, studentId });
-    
+
     if (existingRecord) {
       // Update existing record
       existingRecord.status = validStatus;
       existingRecord.timestamp = new Date();
       await existingRecord.save();
-      
+
       return res.json({
         success: true,
         message: `${student.name} marked as ${validStatus}`,

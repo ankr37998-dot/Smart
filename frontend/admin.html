@@ -28,7 +28,7 @@
     </script>
     <link
       rel="stylesheet"
-      href="assets/css/styles.css?v=20260922-layout-fix-v1"
+      href="assets/css/styles.css?v=20260920-apple-ui-v6"
     />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   </head>
@@ -75,9 +75,10 @@
       </aside>
 
       <main class="app-shell__main">
-      <section class="desktop-dashboard">
-        <div class="main-content">
-    <div class="container">
+        <div class="desktop-content">
+          <section class="desktop-dashboard">
+            <div class="main-content">
+              <div class="container">
                 <div id="dashboardView">
                   <h3 class="section-title">Admin Dashboard</h3>
 
@@ -131,7 +132,7 @@
                 </div>
 
                 <div id="createUserView" class="hidden">
-                  <h3 class="section-gap">Manage Users</h3>
+                  <h3 class="section-gap text-white">Manage Users</h3>
 
                   <div
                     class="user-management-tabs"
@@ -404,7 +405,7 @@
 
                 <!-- Promote Students View -->
                 <div id="legacyPromoteView" class="hidden">
-                  <h3 class="section-gap">📈 Promote Students</h3>
+                  <h3 class="section-gap text-white">📈 Promote Students</h3>
 
                   <div class="card">
                     <h4>🔄 Group Promotion</h4>
@@ -554,7 +555,7 @@
 
                 <!-- Department Management View -->
                 <div id="departmentsView" class="hidden">
-                  <h3 class="section-title">Manage Departments</h3>
+                  <h3 class="section-title section-gap">Manage Departments</h3>
 
                   <div id="departmentCreateCard" class="card section-gap hidden">
                     <h4 id="departmentFormTitle">➕ Create Department</h4>
@@ -638,7 +639,7 @@
 
                 <!-- Section Management View -->
                 <div id="sectionsView" class="hidden">
-                  <h3 class="section-gap">Manage Sections</h3>
+                  <h3 class="section-gap text-white">Manage Sections</h3>
 
                   <div id="sectionCreateCard" class="card section-gap hidden">
                     <h4 id="sectionFormTitle">➕ Create Section</h4>
@@ -726,7 +727,7 @@
 
                 <!-- Course Management View -->
                 <div id="coursesView" class="hidden">
-                  <h3 class="section-gap">Manage Courses</h3>
+                  <h3 class="section-gap text-white">Manage Courses</h3>
 
                   <div id="courseCreateCard" class="card section-gap hidden">
                     <h4 id="courseFormTitle">➕ Create Course</h4>
@@ -865,7 +866,7 @@
                 </div>
 
                 <div id="timetableView" class="hidden">
-                  <h3 class="section-gap">Manage Weekly Schedule</h3>
+                  <h3 class="section-gap text-white">Manage Weekly Schedule</h3>
 
                   <!-- Select Faculty -->
                   <div id="timetableWorkspace" class="card section-gap">
@@ -1208,11 +1209,10 @@
                 </div>
               </div>
             </div>
-          </div>
+          </section>
         </div>
-      </section>
-    </main>
-  </div>
+      </main>
+    </div>
 
     <script src="config.js?v=20260526"></script>
     <script type="module" src="assets/js/admin.js?v=20260920-scroll-fix"></script>

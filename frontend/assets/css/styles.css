@@ -191,12 +191,6 @@ body {
 .app-shell #studentManagementCard h4 {
   color: var(--app-text);
   letter-spacing: -0.03em;
-  font-weight: 700;
-}
-
-/* Fix invisible text-white on light backgrounds */
-.text-white:not(.btn):not(.card):not(.banner-card):not(.sidebar-btn) {
-  color: #1f2937 !important;
 }
 
 .app-shell button,
@@ -320,7 +314,6 @@ body {
   border-radius: 16px;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.94);
-  width: 100%;
 }
 
 .app-shell .table-fill thead th {
@@ -358,7 +351,6 @@ body {
   box-shadow: none;
   min-height: 38px;
   padding: 0.62rem 0.8rem;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .app-shell input:focus,
@@ -376,12 +368,6 @@ body {
   font-size: 0.8rem;
   font-weight: 700;
   margin: 0 0.2rem 0 0;
-  transition: all 0.2s ease;
-}
-
-.app-shell .table-fill td:last-child button:hover {
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
 .app-shell .table-fill td:last-child button:first-child {
@@ -401,7 +387,6 @@ body {
   align-items: center;
   gap: 0.7rem;
   margin-left: auto;
-  flex-wrap: wrap;
 }
 
 .app-shell .department-list-actions select {
@@ -504,7 +489,7 @@ body {
 }
 
 .app-shell .desktop-content {
-  padding: 0.5rem 1.5rem 1rem;
+  padding: 1.4rem 1.5rem 2rem;
 }
 
 .app-shell .container {
@@ -515,9 +500,9 @@ body {
 
 .app-shell .section-title,
 .app-shell #dashboardView > .section-title {
-  margin: 0 0 0.3rem;
-  font-size: clamp(1.4rem, 1.8vw, 2rem);
-  line-height: 1.1;
+  margin: 0 0 1.2rem;
+  font-size: clamp(2rem, 2.4vw, 2.7rem);
+  line-height: 1.08;
   letter-spacing: -0.06em;
   font-weight: 800;
   color: #111827;
@@ -531,7 +516,6 @@ body {
   padding-bottom: 0.95rem;
   margin-bottom: 0.9rem;
   border-bottom: 1px solid rgba(15, 23, 42, 0.05);
-  flex-wrap: wrap;
 }
 
 .app-shell .dashboard-section-heading h4 {
@@ -550,8 +534,8 @@ body {
 }
 
 .app-shell .cards.section-gap {
-  gap: 0.8rem;
-  margin-bottom: 0.8rem;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 .app-shell .cards,
@@ -559,30 +543,11 @@ body {
 .app-shell .dashboard-attendance-grid,
 .app-shell .dashboard-alert-list {
   display: grid;
-  gap: 0.8rem;
+  gap: 1rem;
 }
 
 .app-shell .cards {
   grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-/* Mobile responsiveness for cards */
-@media (max-width: 768px) {
-  .app-shell .cards {
-    grid-template-columns: 1fr;
-  }
-  
-  .app-shell .dashboard-attendance-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-  
-  .app-shell .desktop-sidebar {
-    display: none;
-  }
-  
-  .app-shell .desktop-content {
-    padding: 1rem;
-  }
 }
 
 .app-shell .cards > div,
@@ -771,10 +736,9 @@ body {
   color: #111827;
   letter-spacing: -0.04em;
   text-transform: none;
-  font-size: 1.5rem;
+  font-size: 1.7rem;
   font-weight: 800;
   padding-left: 0.3rem;
-  margin-bottom: 0.8rem;
 }
 
 .app-shell .sidebar-btn,
@@ -822,7 +786,6 @@ textarea {
   );
   border: 1px solid rgba(148, 163, 184, 0.14);
   box-shadow: 0 12px 28px rgba(17, 24, 39, 0.045);
-  padding: 1rem;
 }
 
 .card,
@@ -836,160 +799,6 @@ textarea {
 
 .dashboard-attendance-section {
   border-radius: 22px;
-}
-
-/* Loading states */
-.loading-spinner {
-  display: inline-block;
-  width: 20px;
-  height: 20px;
-  border: 2px solid rgba(59, 130, 246, 0.3);
-  border-radius: 50%;
-  border-top-color: #3b82f6;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-/* Empty states */
-.empty-state {
-  text-align: center;
-  padding: 2rem;
-  color: #64748b;
-}
-
-.empty-state::before {
-  content: "📭";
-  display: block;
-  font-size: 2rem;
-  margin-bottom: 0.5rem;
-}
-
-/* Status badges */
-.status-badge {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.25rem 0.75rem;
-  border-radius: 9999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-
-.status-badge.success {
-  background: rgba(16, 185, 129, 0.1);
-  color: #047857;
-}
-
-.status-badge.warning {
-  background: rgba(245, 158, 11, 0.1);
-  color: #b45309;
-}
-
-.status-badge.error {
-  background: rgba(239, 68, 68, 0.1);
-  color: #b91c1c;
-}
-
-.status-badge.info {
-  background: rgba(59, 130, 246, 0.1);
-  color: #1d4ed8;
-}
-
-/* Form improvements */
-.form-group {
-  margin-bottom: 1rem;
-}
-
-.form-group label {
-  display: block;
-  margin-bottom: 0.4rem;
-  font-weight: 600;
-  font-size: 0.9rem;
-  color: #374151;
-}
-
-.form-group input:focus,
-.form-group select:focus,
-.form-group textarea:focus {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-}
-
-/* Panel scroll improvements */
-.panel-scroll {
-  max-height: 400px;
-  overflow-y: auto;
-  border-radius: 12px;
-}
-
-.panel-scroll::-webkit-scrollbar {
-  width: 8px;
-}
-
-.panel-scroll::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.05);
-  border-radius: 4px;
-}
-
-.panel-scroll::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: 4px;
-}
-
-.panel-scroll::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.3);
-}
-
-/* Button groups */
-.button-group {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.button-group .btn {
-  flex: 1;
-  min-width: 120px;
-}
-
-/* Error message styling */
-.error-msg {
-  color: #dc2626;
-  font-size: 0.85rem;
-  margin-top: 0.5rem;
-  padding: 0.5rem;
-  background: rgba(220, 38, 38, 0.1);
-  border-radius: 8px;
-  border-left: 3px solid #dc2626;
-}
-
-/* Success message styling */
-.success-msg {
-  color: #16a34a;
-  font-size: 0.85rem;
-  margin-top: 0.5rem;
-  padding: 0.5rem;
-  background: rgba(22, 163, 74, 0.1);
-  border-radius: 8px;
-  border-left: 3px solid #16a34a;
-}
-
-/* Reduce spacing for management views */
-.app-shell #departmentsView,
-.app-shell #sectionsView,
-.app-shell #coursesView,
-.app-shell #createUserView {
-  margin-top: 0;
-}
-
-.app-shell #departmentsView > h3,
-.app-shell #sectionsView > h3,
-.app-shell #coursesView > h3,
-.app-shell #createUserView > h3 {
-  margin-top: 0;
-  margin-bottom: 0.5rem;
 }
 
 .app-shell .section-title,
@@ -1902,7 +1711,7 @@ body.sidebar-open::before {
 
 .section-gap {
   display: grid;
-  gap: 1rem;
+  gap: 1.5rem;
 }
 
 .section-gap-sm {

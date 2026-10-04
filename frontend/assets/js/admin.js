@@ -1,4 +1,4 @@
-import { apiGet, apiPost, apiPut, apiDelete, apiDownload, ensureAuth, getUser, logout } from "./api.js?v=20260526";
+import { apiGet, apiPost, apiPut, apiPatch, apiDelete, apiDownload, ensureAuth, getUser, logout } from "./api.js?v=20260526";
 
 const user = ensureAuth(["admin"]);
 
@@ -353,7 +353,7 @@ faceRegsTableBody?.addEventListener("click", async (e) => {
       const currentlyDisabled = Boolean(row?.face?.disabled);
       const disabled = !currentlyDisabled;
       const reason = disabled ? prompt("Reason for disabling (optional):") : "";
-      await apiPost(`/api/admin/face-registrations/${id}/disable`, { disabled, reason });
+      await apiPatch(`/api/admin/face-registrations/${id}/disable`, { disabled, reason });
       await loadFaceRegistrations();
     }
   } catch (err) {
@@ -465,13 +465,14 @@ async function loadAttendanceDashboard() {
     const report = await apiGet("/api/admin/analytics/report");
     const rows = Array.isArray(report) ? report : [];
     const totalMarked = rows.reduce((sum, row) => sum + Number(row.totalMarked || 0), 0);
+    const totalExpected = rows.reduce((sum, row) => sum + Number(row.totalExpected || 0), 0);
     const presentCount = rows.reduce((sum, row) => sum + Number(row.presentCount || 0), 0);
     const conducted = rows.reduce((sum, row) => sum + Number(row.totalClassesConducted || 0), 0);
-    const attendance = totalMarked ? Math.round((presentCount / totalMarked) * 100) : 0;
+    const attendance = totalExpected ? Math.round((presentCount / totalExpected) * 100) : 0;
     const lowAttendance = rows.filter(row => Number(row.averageAttendance || 0) < 75);
 
     overview.innerHTML = `
-      <div class="dashboard-kpi dashboard-kpi-primary"><span>Overall attendance</span><strong>${attendance}%</strong><small>${presentCount} present of ${totalMarked} marked</small></div>
+      <div class="dashboard-kpi dashboard-kpi-primary"><span>Overall attendance</span><strong>${attendance}%</strong><small>${presentCount} present of ${totalExpected} expected</small></div>
       <div class="dashboard-kpi"><span>Present records</span><strong>${presentCount}</strong><small>Across all recorded sessions</small></div>
       <div class="dashboard-kpi"><span>Classes conducted</span><strong>${conducted}</strong><small>Attendance sessions recorded</small></div>
       <div class="dashboard-kpi dashboard-kpi-warning"><span>Below 75%</span><strong>${lowAttendance.length}</strong><small>Courses needing attention</small></div>
@@ -485,15 +486,15 @@ async function loadAttendanceDashboard() {
       const departmentMap = new Map();
       rows.forEach(row => {
         const key = row.department || "Other";
-        const current = departmentMap.get(key) || { present: 0, marked: 0 };
+        const current = departmentMap.get(key) || { present: 0, expected: 0 };
         current.present += Number(row.presentCount || 0);
-        current.marked += Number(row.totalMarked || 0);
+        current.expected += Number(row.totalExpected || 0);
         departmentMap.set(key, current);
       });
       const departmentRows = [...departmentMap.entries()];
       departments.innerHTML = departmentRows.length
         ? departmentRows.map(([name, values]) => {
-          const percentage = values.marked ? Math.round((values.present / values.marked) * 100) : 0;
+          const percentage = values.expected ? Math.round((values.present / values.expected) * 100) : 0;
           return `<div class="dashboard-department-item"><span>${name}</span><div class="dashboard-progress"><i style="width:${percentage}%"></i></div><strong>${percentage}%</strong></div>`;
         }).join("")
         : '<p class="dashboard-empty-state">No attendance data available yet.</p>';
@@ -1741,8 +1742,10 @@ function renderAnalytics(report) {
     <tr>
       <th>Course</th>
       <th>Classes</th>
+      <th>Students</th>
       <th>Present</th>
       <th>Absent</th>
+      <th>Unmarked</th>
       <th>Avg %</th>
     </tr>
   `;
@@ -1752,8 +1755,10 @@ function renderAnalytics(report) {
       <tr>
         <td>${r.class.courseCode} - ${r.class.courseName}</td>
         <td>${r.totalClassesConducted}</td>
+        <td>${r.totalStudents}</td>
         <td>${r.presentCount}</td>
         <td>${r.absentCount}</td>
+        <td>${r.unmarkedCount}</td>
         <td>${r.averageAttendance}%</td>
       </tr>`
     )

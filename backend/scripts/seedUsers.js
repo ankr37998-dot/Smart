@@ -37,6 +37,10 @@ const testUsers = [
 
 async function seedUsers() {
   try {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("Test users cannot be seeded in production.");
+    }
+
     if (!process.env.MONGO_URI) {
       throw new Error("MONGO_URI environment variable is not defined");
     }

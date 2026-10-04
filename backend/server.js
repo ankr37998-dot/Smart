@@ -16,6 +16,7 @@ import studentRoutes from "./routes/studentRoutes.js";
 import analyticsRoutes from "./routes/analyticsRoutes.js";
 import mlRoutes from "./routes/mlRoutes.js";
 import { User } from "./models/User.js";
+import { Class } from "./models/Class.js";
 import { notFound, errorHandler } from "./middleware/errorHandler.js";
 import { verifyToken } from "./utils/jwt.js";
 
@@ -71,48 +72,22 @@ app.get("/login", (req, res) => {
 });
 
 app.get("/admin", (req, res) => {
-  res.sendFile(path.join(frontendDir, "admin-dashboard.html"));
+  res.redirect("/admin.html");
 });
 
-// Admin split pages
-app.get("/admin-dashboard.html", (req, res) => {
-  res.sendFile(path.join(frontendDir, "admin-dashboard.html"));
-});
-
-app.get("/admin-users.html", (req, res) => {
-  res.sendFile(path.join(frontendDir, "admin-users.html"));
-});
-
-app.get("/admin-departments.html", (req, res) => {
-  res.sendFile(path.join(frontendDir, "admin-departments.html"));
-});
-
-app.get("/admin-sections.html", (req, res) => {
-  res.sendFile(path.join(frontendDir, "admin-sections.html"));
-});
-
-app.get("/admin-courses.html", (req, res) => {
-  res.sendFile(path.join(frontendDir, "admin-courses.html"));
-});
-
-app.get("/admin-timetable.html", (req, res) => {
-  res.sendFile(path.join(frontendDir, "admin-timetable.html"));
-});
-
-app.get("/admin-promote.html", (req, res) => {
-  res.sendFile(path.join(frontendDir, "admin-promote.html"));
-});
-
-app.get("/admin-analytics.html", (req, res) => {
-  res.sendFile(path.join(frontendDir, "admin-analytics.html"));
-});
-
-app.get("/admin-face-id.html", (req, res) => {
-  res.sendFile(path.join(frontendDir, "admin-face-id.html"));
-});
-
-app.get("/admin-profile.html", (req, res) => {
-  res.sendFile(path.join(frontendDir, "admin-profile.html"));
+app.get([
+  "/admin-dashboard.html",
+  "/admin-users.html",
+  "/admin-departments.html",
+  "/admin-sections.html",
+  "/admin-courses.html",
+  "/admin-timetable.html",
+  "/admin-promote.html",
+  "/admin-analytics.html",
+  "/admin-face-id.html",
+  "/admin-profile.html"
+], (req, res) => {
+  res.redirect("/admin.html");
 });
 
 app.get("/faculty", (req, res) => {
@@ -185,11 +160,38 @@ io.use((socket, next) => {
 io.on("connection", (socket) => {
   console.log("Socket connected:", socket.id, "role:", socket.user?.role);
 
-  socket.on("join-class", ({ classId }) => {
-    if (!classId) return;
+  socket.on("join-class", async (payload = {}) => {
+    const classId = payload?.classId;
+    if (typeof classId !== "string" || !/^[a-f\d]{24}$/i.test(classId)) return;
 
-    const room = `class:${classId}`;
-    socket.join(room);
+    try {
+      const user = await User.findById(socket.user.id)
+        .select("role department semester section")
+        .lean();
+      if (!user) return;
+
+      if (user.role === "admin") {
+        socket.join(`class:${classId}`);
+        return;
+      }
+
+      const classFilter = user.role === "faculty"
+        ? { _id: classId, facultyId: user._id }
+        : user.role === "student"
+          ? {
+            _id: classId,
+            department: user.department,
+            semester: user.semester,
+            section: user.section
+          }
+          : null;
+
+      if (classFilter && await Class.exists(classFilter)) {
+        socket.join(`class:${classId}`);
+      }
+    } catch (error) {
+      console.error("Socket class room authorization failed:", error.message);
+    }
   });
 
   socket.on("leave-class", ({ classId }) => {

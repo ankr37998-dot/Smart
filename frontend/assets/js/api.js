@@ -98,6 +98,20 @@ export const apiPut = async (path, body) => {
   return res.json();
 };
 
+export const apiPatch = async (path, body) => {
+  const res = await fetch(toSameOriginApiPath(path), {
+    method: "PATCH",
+    headers: buildHeaders(true),
+    body: JSON.stringify(body)
+  });
+
+  if (!res.ok) {
+    throw await makeHttpError(res);
+  }
+
+  return res.json();
+};
+
 export const apiDelete = async (path) => {
   const res = await fetch(toSameOriginApiPath(path), {
     method: "DELETE",

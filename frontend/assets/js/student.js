@@ -2,6 +2,25 @@ import { apiGet, apiPost, ensureAuth, logout } from "./api.js?v=20260526";
 
 const user = ensureAuth(["student"]);
 
+const getCurrentLocation = () => new Promise((resolve, reject) => {
+  if (!navigator.geolocation) {
+    reject(new Error("Location is not supported by this browser."));
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    ({ coords }) => {
+      if (coords.accuracy > 20) {
+        reject(new Error("Location accuracy is too low. Move near a window and try again."));
+        return;
+      }
+      resolve({ latitude: coords.latitude, longitude: coords.longitude, accuracy: coords.accuracy });
+    },
+    (error) => reject(new Error(error.code === 1 ? "Allow location access to mark attendance." : "Could not determine your location. Try again.")),
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+  );
+});
+
 const logoutBtn = document.getElementById("logoutBtn");
 logoutBtn?.addEventListener("click", logout);
 
@@ -117,7 +136,7 @@ function updateWelcomeBanner() {
   const infoEl = document.getElementById("studentInfoDisplay");
   const dateEl = document.getElementById("currentDateStudent");
   const dayEl = document.getElementById("currentDayStudent");
-  
+
   if (nameEl && storedUser.name) {
     nameEl.textContent = storedUser.name;
   }
@@ -127,7 +146,7 @@ function updateWelcomeBanner() {
     const sec = storedUser.section || '';
     infoEl.textContent = `${dept} | Semester ${sem} | Section ${sec}`;
   }
-  
+
   const now = new Date();
   if (dateEl) {
     dateEl.textContent = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -240,23 +259,23 @@ async function loadTodayAttendance() {
       `;
       return;
     }
-    
+
     const recordsHTML = data.records.map(record => {
       const statusColor = record.status === 'present' ? '#28a745' : '#dc3545';
       const statusIcon = record.status === 'present' ? '✅' : '❌';
       const statusText = record.status === 'present' ? 'PRESENT' : 'ABSENT';
-      
+
       const markedTime = record.markedAt ? new Date(record.markedAt).toLocaleTimeString('en-US', {
         hour: '2-digit',
         minute: '2-digit',
         second: '2-digit'
       }) : null;
-      
+
       const sessionTime = new Date(record.sessionStartedAt).toLocaleTimeString('en-US', {
         hour: '2-digit',
         minute: '2-digit'
       });
-      
+
       return `
         <div style="display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; border-bottom: 1px solid #333; ${record.status === 'present' ? 'background: rgba(40, 167, 69, 0.1);' : ''}">
           <div style="flex: 1;">
@@ -283,7 +302,7 @@ async function loadTodayAttendance() {
         </div>
       `;
     }).join('');
-    
+
     // Summary header
     const summaryHTML = `
       <div style="display: flex; justify-content: space-around; padding: 15px; background: #1a1a1a; border-bottom: 2px solid #333;">
@@ -301,9 +320,9 @@ async function loadTodayAttendance() {
         </div>
       </div>
     `;
-    
+
     todayAttendanceList.innerHTML = summaryHTML + recordsHTML;
-    
+
   } catch (error) {
     console.error("Today attendance load error", error);
     todayAttendanceList.innerHTML = `
@@ -364,14 +383,14 @@ async function loadActiveSessions() {
       `;
       return;
     }
-    
+
     const sessionCardsHTML = sessions.map(session => {
       const expiresAt = new Date(session.expiresAt);
       const now = new Date();
       const remainingMs = expiresAt - now;
       const remainingMins = Math.max(0, Math.floor(remainingMs / 60000));
       const remainingSecs = Math.max(0, Math.floor((remainingMs % 60000) / 1000));
-      
+
       if (session.alreadyMarked) {
         return `
           <div style="display: flex; align-items: center; justify-content: space-between; padding: 15px; background: #1a3d1a; border-left: 4px solid #28a745; border-radius: 8px; margin-bottom: 10px;">
@@ -385,7 +404,7 @@ async function loadActiveSessions() {
           </div>
         `;
       }
-      
+
       return `
         <div style="display: flex; align-items: center; justify-content: space-between; padding: 15px; background: #2d2d2d; border-left: 4px solid #ffc107; border-radius: 8px; margin-bottom: 10px;">
           <div>
@@ -404,12 +423,12 @@ async function loadActiveSessions() {
         </div>
       `;
     }).join('');
-    
+
     activeSessionsList.innerHTML = sessionCardsHTML;
-    
+
     // Start countdown timers
     startSessionTimers();
-    
+
   } catch (error) {
     console.error("Active sessions load error", error);
     activeSessionsList.innerHTML = `<p style="color: red;">Could not load active sessions. Please try again.</p>`;
@@ -424,16 +443,16 @@ function startSessionTimers() {
   if (sessionTimerInterval) {
     clearInterval(sessionTimerInterval);
   }
-  
+
   sessionTimerInterval = setInterval(() => {
     const timers = document.querySelectorAll('.session-timer');
     let anyActive = false;
-    
+
     timers.forEach(timer => {
       const expiresAt = new Date(timer.dataset.expires);
       const now = new Date();
       const remainingMs = expiresAt - now;
-      
+
       if (remainingMs <= 0) {
         timer.textContent = 'Expired';
         timer.style.color = '#dc3545';
@@ -446,7 +465,7 @@ function startSessionTimers() {
         timer.textContent = `${remainingMins}m ${remainingSecs}s`;
       }
     });
-    
+
     if (!anyActive && sessionTimerInterval) {
       clearInterval(sessionTimerInterval);
       sessionTimerInterval = null;
@@ -465,7 +484,7 @@ async function checkActiveSessionsForBanner() {
     }
 
     const unmarkedSessions = sessions.filter((s) => !s.alreadyMarked);
-    
+
     if (unmarkedSessions.length > 0) {
       activeSessionBanner.style.display = 'block';
       if (unmarkedSessions.length === 1) {
@@ -510,9 +529,11 @@ async function handleMarkAttendance(token) {
   if (markBtn) markBtn.disabled = true;
 
   try {
+    const location = await getCurrentLocation();
     await apiPost("/api/student/mark-attendance", {
       qrToken: token,
       faceVerificationToken: dualVerifyState.faceVerificationToken,
+      ...location,
     });
     markMsg.style.color = "green";
     markMsg.textContent = "Attendance marked (face + QR verified)!";
@@ -547,8 +568,8 @@ if (window.Html5Qrcode) {
     },
     verbose: false
   });
-  
-  const config = { 
+
+  const config = {
     fps: 15,  // Higher FPS for faster detection
     qrbox: { width: 250, height: 250 },
     aspectRatio: 1.0,
@@ -570,14 +591,14 @@ if (window.Html5Qrcode) {
     }
     if (isScanning) return;
     isScanning = true;
-    
+
     // Try to get available cameras first
     Html5Qrcode.getCameras().then(cameras => {
       if (cameras && cameras.length > 0) {
         // Prefer back camera if available
         const backCamera = cameras.find(c => c.label.toLowerCase().includes('back') || c.label.toLowerCase().includes('rear'));
         const cameraId = backCamera ? backCamera.id : cameras[0].id;
-        
+
         qrScanner.start(
           cameraId,
           config,
@@ -690,7 +711,7 @@ async function loadTimeTable() {
       upcomingClassDetails.innerHTML = `<p style="color: #888;">No classes scheduled yet. Please contact your admin.</p>`;
       return;
     }
-    
+
     const header = `
       <thead>
         <tr>
@@ -726,46 +747,46 @@ async function loadTimeTable() {
 }
 
 function findUpcomingClass(timeTableData) {
-    const now = new Date();
-    const dayOfWeek = now.toLocaleString('en-us', { weekday: 'long' }).toLowerCase();
-    const currentTime = now.getHours() * 60 + now.getMinutes(); // in minutes
+  const now = new Date();
+  const dayOfWeek = now.toLocaleString('en-us', { weekday: 'long' }).toLowerCase();
+  const currentTime = now.getHours() * 60 + now.getMinutes(); // in minutes
 
-    let currentClass = null;
-    let upcomingClass = null;
+  let currentClass = null;
+  let upcomingClass = null;
 
-    for (const slot of timeTableData) {
-        const classInfo = slot[dayOfWeek];
-        if (!classInfo) continue;
-        
-        const timeParts = slot.time.split(' - ');
-        const startParts = timeParts[0].split(':');
-        const endParts = timeParts[1].split(':');
-        const startTime = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
-        const endTime = parseInt(endParts[0]) * 60 + parseInt(endParts[1]);
+  for (const slot of timeTableData) {
+    const classInfo = slot[dayOfWeek];
+    if (!classInfo) continue;
 
-        // Check if this is current class
-        if (currentTime >= startTime && currentTime < endTime) {
-            currentClass = { 
-                course: classInfo.courseCode || classInfo.course, 
-                courseName: classInfo.courseName,
-                time: slot.time,
-                room: classInfo.room
-            };
-        }
-        // Check for upcoming class (within next hour)
-        else if (startTime > currentTime && startTime - currentTime <= 60 && !upcomingClass) {
-            upcomingClass = { 
-                course: classInfo.courseCode || classInfo.course, 
-                courseName: classInfo.courseName,
-                time: slot.time,
-                room: classInfo.room,
-                startsIn: startTime - currentTime
-            };
-        }
+    const timeParts = slot.time.split(' - ');
+    const startParts = timeParts[0].split(':');
+    const endParts = timeParts[1].split(':');
+    const startTime = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
+    const endTime = parseInt(endParts[0]) * 60 + parseInt(endParts[1]);
+
+    // Check if this is current class
+    if (currentTime >= startTime && currentTime < endTime) {
+      currentClass = {
+        course: classInfo.courseCode || classInfo.course,
+        courseName: classInfo.courseName,
+        time: slot.time,
+        room: classInfo.room
+      };
     }
+    // Check for upcoming class (within next hour)
+    else if (startTime > currentTime && startTime - currentTime <= 60 && !upcomingClass) {
+      upcomingClass = {
+        course: classInfo.courseCode || classInfo.course,
+        courseName: classInfo.courseName,
+        time: slot.time,
+        room: classInfo.room,
+        startsIn: startTime - currentTime
+      };
+    }
+  }
 
-    if (currentClass) {
-        upcomingClassDetails.innerHTML = `
+  if (currentClass) {
+    upcomingClassDetails.innerHTML = `
             <div style="border-left: 4px solid #28a745; padding-left: 15px;">
                 <p style="color: #28a745; font-weight: bold; margin-bottom: 5px;">🟢 ONGOING CLASS</p>
                 <p><strong>Course:</strong> ${currentClass.course} ${currentClass.courseName ? `- ${currentClass.courseName}` : ''}</p>
@@ -774,8 +795,8 @@ function findUpcomingClass(timeTableData) {
                 <button onclick="switchView('mark')" style="margin-top: 10px; background: #28a745;">📱 Mark Attendance Now</button>
             </div>
         `;
-    } else if (upcomingClass) {
-        upcomingClassDetails.innerHTML = `
+  } else if (upcomingClass) {
+    upcomingClassDetails.innerHTML = `
             <div style="border-left: 4px solid #ffc107; padding-left: 15px;">
                 <p style="color: #ffc107; font-weight: bold; margin-bottom: 5px;">⏰ NEXT CLASS (in ${upcomingClass.startsIn} min)</p>
                 <p><strong>Course:</strong> ${upcomingClass.course} ${upcomingClass.courseName ? `- ${upcomingClass.courseName}` : ''}</p>
@@ -783,12 +804,12 @@ function findUpcomingClass(timeTableData) {
                 ${upcomingClass.room ? `<p><strong>Room:</strong> ${upcomingClass.room}</p>` : ''}
             </div>
         `;
-    } else {
-        upcomingClassDetails.innerHTML = `<p style="color: #888;">📚 No more classes today.</p>`;
-    }
-    
-    // Show today's full schedule
-    showTodaySchedule(timeTableData, dayOfWeek, currentTime);
+  } else {
+    upcomingClassDetails.innerHTML = `<p style="color: #888;">📚 No more classes today.</p>`;
+  }
+
+  // Show today's full schedule
+  showTodaySchedule(timeTableData, dayOfWeek, currentTime);
 }
 
 // Step 1: Face verification only (unlocks QR step)
@@ -851,45 +872,45 @@ async function verifyFaceForAttendance() {
 }
 
 function showTodaySchedule(timeTableData, dayOfWeek, currentTime) {
-    const todayClasses = [];
-    
-    for (const slot of timeTableData) {
-        const classInfo = slot[dayOfWeek];
-        if (classInfo) {
-            const timeParts = slot.time.split(' - ');
-            const startParts = timeParts[0].split(':');
-            const endParts = timeParts[1].split(':');
-            const startTime = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
-            const endTime = parseInt(endParts[0]) * 60 + parseInt(endParts[1]);
-            
-            let status = 'upcoming';
-            if (currentTime >= endTime) status = 'completed';
-            else if (currentTime >= startTime && currentTime < endTime) status = 'ongoing';
-            
-            todayClasses.push({
-                time: slot.time,
-                course: classInfo.courseCode || classInfo.course,
-                courseName: classInfo.courseName,
-                room: classInfo.room,
-                status
-            });
-        }
+  const todayClasses = [];
+
+  for (const slot of timeTableData) {
+    const classInfo = slot[dayOfWeek];
+    if (classInfo) {
+      const timeParts = slot.time.split(' - ');
+      const startParts = timeParts[0].split(':');
+      const endParts = timeParts[1].split(':');
+      const startTime = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
+      const endTime = parseInt(endParts[0]) * 60 + parseInt(endParts[1]);
+
+      let status = 'upcoming';
+      if (currentTime >= endTime) status = 'completed';
+      else if (currentTime >= startTime && currentTime < endTime) status = 'ongoing';
+
+      todayClasses.push({
+        time: slot.time,
+        course: classInfo.courseCode || classInfo.course,
+        courseName: classInfo.courseName,
+        room: classInfo.room,
+        status
+      });
     }
-    
-    if (todayClasses.length === 0) {
-        todaySchedule.innerHTML = `<p style="color: #888; text-align: center;">No classes scheduled for today.</p>`;
-        return;
-    }
-    
-    todaySchedule.innerHTML = todayClasses.map(cls => {
-        const statusColors = {
-            completed: { bg: '#2d2d2d', border: '#555', icon: '✅' },
-            ongoing: { bg: '#1a3d1a', border: '#28a745', icon: '🟢' },
-            upcoming: { bg: '#2d2d2d', border: '#3d3d3d', icon: '⏳' }
-        };
-        const style = statusColors[cls.status];
-        
-        return `
+  }
+
+  if (todayClasses.length === 0) {
+    todaySchedule.innerHTML = `<p style="color: #888; text-align: center;">No classes scheduled for today.</p>`;
+    return;
+  }
+
+  todaySchedule.innerHTML = todayClasses.map(cls => {
+    const statusColors = {
+      completed: { bg: '#2d2d2d', border: '#555', icon: '✅' },
+      ongoing: { bg: '#1a3d1a', border: '#28a745', icon: '🟢' },
+      upcoming: { bg: '#2d2d2d', border: '#3d3d3d', icon: '⏳' }
+    };
+    const style = statusColors[cls.status];
+
+    return `
             <div style="display: flex; align-items: center; gap: 10px; padding: 10px; background: ${style.bg}; border-left: 3px solid ${style.border}; border-radius: 6px; margin-bottom: 8px;">
                 <span style="font-size: 1.2rem;">${style.icon}</span>
                 <div style="flex: 1;">
@@ -902,7 +923,7 @@ function showTodaySchedule(timeTableData, dayOfWeek, currentTime) {
                 </div>
             </div>
         `;
-    }).join('');
+  }).join('');
 }
 
 async function registerFace() {
@@ -1164,16 +1185,16 @@ const viewAttendanceForm = document.getElementById("viewAttendanceForm");
 const attendanceStatusTable = document.getElementById("attendanceStatusTable");
 
 viewAttendanceForm?.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    if (!attendanceStatusTable) return;
-    attendanceStatusTable.style.display = "table";
-    const date = document.getElementById("studentDate")?.value;
-    if (!date) return;
+  e.preventDefault();
+  if (!attendanceStatusTable) return;
+  attendanceStatusTable.style.display = "table";
+  const date = document.getElementById("studentDate")?.value;
+  if (!date) return;
 
-    try {
-        const attendance = await apiGet(`/api/student/attendance?date=${date}`);
-        if (!attendance) return;
-        const header = `
+  try {
+    const attendance = await apiGet(`/api/student/attendance?date=${date}`);
+    if (!attendance) return;
+    const header = `
             <thead>
                 <tr>
                     <th>Subject</th>
@@ -1182,18 +1203,18 @@ viewAttendanceForm?.addEventListener("submit", async (e) => {
             </thead>
         `;
 
-        const rows = (Array.isArray(attendance) ? attendance : []).map(a => `
+    const rows = (Array.isArray(attendance) ? attendance : []).map(a => `
             <tr>
                 <td>${a.subject}</td>
                 <td style="color: ${a.status === 'Present' ? 'green' : 'red'};">${a.status}</td>
             </tr>
         `).join('');
 
-        attendanceStatusTable.innerHTML = `${header}<tbody>${rows}</tbody>`;
-    } catch (error) {
-        console.error("Attendance status load error", error);
-        attendanceStatusTable.innerHTML = "<tr><td colspan='2'>Could not load attendance.</td></tr>";
-    }
+    attendanceStatusTable.innerHTML = `${header}<tbody>${rows}</tbody>`;
+  } catch (error) {
+    console.error("Attendance status load error", error);
+    attendanceStatusTable.innerHTML = "<tr><td colspan='2'>Could not load attendance.</td></tr>";
+  }
 });
 
 // Initial load

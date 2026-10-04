@@ -2,6 +2,25 @@ import { apiGet, apiPost, ensureAuth, getUser, logout } from "./api.js?v=2026052
 
 const user = ensureAuth(["faculty"]);
 
+const getCurrentLocation = () => new Promise((resolve, reject) => {
+  if (!navigator.geolocation) {
+    reject(new Error("Location is not supported by this browser."));
+    return;
+  }
+
+  navigator.geolocation.getCurrentPosition(
+    ({ coords }) => {
+      if (coords.accuracy > 20) {
+        reject(new Error("Location accuracy is too low. Move near a window and try again."));
+        return;
+      }
+      resolve({ latitude: coords.latitude, longitude: coords.longitude, accuracy: coords.accuracy });
+    },
+    (error) => reject(new Error(error.code === 1 ? "Allow location access to start attendance." : "Could not determine your location. Try again.")),
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+  );
+});
+
 const logoutBtn = document.getElementById("logoutBtn");
 logoutBtn?.addEventListener("click", logout);
 
@@ -246,8 +265,8 @@ function populateSubjectDropdown() {
 async function startSession(classId, sessionData) {
   sessionControls.style.display = "block"; // Show the session controls
   try {
-    // Call the real API to start the session
-    const session = await apiPost("/api/faculty/start-session", { classId });
+    const location = await getCurrentLocation();
+    const session = await apiPost("/api/faculty/start-session", { classId, ...location });
 
     currentQrToken = session.qrToken;
 
@@ -699,7 +718,8 @@ async function startAutoSession(slotData) {
         section: slotData.section
       };
 
-    const response = await apiPost("/api/faculty/auto-session", payload);
+    const location = await getCurrentLocation();
+    const response = await apiPost("/api/faculty/auto-session", { ...payload, ...location });
 
     // Build class name for display
     const className = typeof slotData === 'string' ? response.className :
