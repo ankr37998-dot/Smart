@@ -13,9 +13,6 @@ const getRuntimeApiBase = () => {
         hostname === "localhost" || hostname === "127.0.0.1"
             ? `${window.location.protocol}//${hostname}:5000`
             : "",
-        hostname.includes("vercel.app")
-            ? "https://smart-attendance-backend.onrender.com"
-            : "",
     ];
 
     for (const candidate of candidates) {
